@@ -1,3 +1,4 @@
+// Путь: src/domain/debts.test.ts
 import { describe, expect, it } from 'vitest'
 import { debtProgress, debtStatus, makeWorks, totalProgress, type Debt } from './debts'
 

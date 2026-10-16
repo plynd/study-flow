@@ -1,3 +1,4 @@
+// Путь: src/domain/sources.test.ts
 import { describe, expect, it } from 'vitest'
 import { agoText, canRefresh, isLecturerUrl, minutesLeft, validateIcsUrl } from './sources'
 

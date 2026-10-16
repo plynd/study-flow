@@ -1,9 +1,11 @@
+// Путь: src/screens/ScheduleScreen.tsx
 import { useEffect, useState } from 'react'
 import {
   addDays, building, dayBlocks, dayBounds, defaultWeek, emptyHidden, fmtDate, fmtTime, fmtWeek,
   groupByDate, lessonKey, parallelOf, parseIcs, visibleLessons, weekdayName, weeksOf,
   type Hidden, type Lesson,
 } from '../domain/schedule'
+import Picker from './Picker'
 import { PAUSE_MS, agoText, canRefresh, isLecturerUrl, minutesLeft, validateIcsUrl } from '../domain/sources'
 import { classifyCalendar, icsName, matchesFor, teacherDay, type Tag, type TeacherCal, type TeacherEntry } from '../domain/teachers'
 
@@ -13,7 +15,7 @@ const K_TEACHERS = 'schedule-teachers-v1'
 const K_SHOW = 'schedule-show-matches-v1'
 const K_OWN = 'schedule-own-source-v1'
 
-interface Source { url: string; updatedAt?: number }
+interface Source { url: string; updatedAt?: number; label?: string }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 type Mode = 'mine' | 'teachers' | 'both'
@@ -38,6 +40,7 @@ export default function ScheduleScreen() {
   const [own, setOwn] = useState<Source>(() => read<Source>(K_OWN, { url: '' }))
   const [teacherUrl, setTeacherUrl] = useState('')
   const [busy, setBusy] = useState(false)
+  const [picker, setPicker] = useState<null | 'group' | 'lecturer'>(null)
   const [info, setInfo] = useState('')
   const [now, setNow] = useState(() => Date.now())
   const [showMatches, setShowMatches] = useState<boolean>(() => read<boolean>(K_SHOW, true))
@@ -114,7 +117,7 @@ export default function ScheduleScreen() {
     }
     if (target === 'own') {
       setLessons(parsed) // новый файл заменяет старое расписание; скрытия сохраняются
-      if (o.sourceUrl) setOwn((x) => ({ ...x, url: o.sourceUrl!, updatedAt: Date.now() }))
+      if (o.sourceUrl) setOwn((x) => ({ ...x, url: o.sourceUrl!, updatedAt: Date.now(), label: name ?? x.label }))
       return { ok: true, msg: 'обновлено' }
     }
     saveTeacher(name ?? o.fileName ?? 'Преподаватель', parsed, o.sourceUrl, o.teacherId)
@@ -154,14 +157,23 @@ export default function ScheduleScreen() {
     setBusy(false)
   }
 
-  async function addTeacherByUrl() {
-    const v = validateIcsUrl(teacherUrl)
+  async function pickOwn(url: string) {
+    setPicker(null); setBusy(true); setError(''); setInfo('')
+    const r = await fetchIcs(url)
+    if ('error' in r) { setError(r.error); setBusy(false); return }
+    const res = acceptCalendar(r.text, 'own', { sourceUrl: url })
+    if (res.ok) setInfo(res.msg === 'обновлено' ? '' : res.msg); else setError(res.msg)
+    setNow(Date.now()); setBusy(false)
+  }
+
+  async function addTeacherByUrl(picked?: string) {
+    const v = validateIcsUrl(picked ?? teacherUrl)
     if (!v.ok) { setError(v.reason); return }
     setBusy(true); setError('')
     const r = await fetchIcs(v.url)
     if ('error' in r) { setError(r.error); setBusy(false); return }
     const res = acceptCalendar(r.text, 'teacher', { sourceUrl: v.url })
-    if (res.ok) setTeacherUrl(''); else setError(res.msg)
+    if (res.ok) { setTeacherUrl(''); setPicker(null) } else setError(res.msg)
     setBusy(false)
   }
 
@@ -243,19 +255,27 @@ export default function ScheduleScreen() {
       <header className="summary">
         <h1>Расписание</h1>
         <div className="srcrow">
-          <input placeholder="Ссылка на .ics группы (…/?file=….ics)" value={own.url}
-            onChange={(e) => {
-              const url = e.target.value
-              if (isLecturerUrl(url)) {
-                setError('Это ссылка на расписание преподавателя. Её нужно вставлять ниже, в «Преподаватели» (режим «Вместе»).')
-                return
-              }
-              setError('')
-              setOwn((o) => ({ url, updatedAt: url === o.url ? o.updatedAt : undefined }))
-            }} />
+          <button disabled={busy} onClick={() => setPicker(picker === 'group' ? null : 'group')}>
+            {own.url ? 'Сменить группу' : 'Выбрать группу из списка'}
+          </button>
           <button className="primary" disabled={busy} onClick={refreshAll}>{busy ? 'Обновляю…' : 'Обновить'}</button>
         </div>
-        {own.url && <p className="muted">{agoText(own.updatedAt, now)}</p>}
+        {own.url && <p className="muted">{own.label ?? 'Моё расписание'} · {agoText(own.updatedAt, now)}</p>}
+        <details className="manual">
+          <summary>Вставить ссылку на .ics вручную</summary>
+          <div className="srcrow">
+            <input placeholder="Ссылка на .ics группы (…/?file=….ics)" value={own.url}
+              onChange={(e) => {
+                const url = e.target.value
+                if (isLecturerUrl(url)) {
+                  setError('Это ссылка на расписание преподавателя. Её нужно вставлять ниже, в «Преподаватели» (режим «Вместе»).')
+                  return
+                }
+                setError('')
+                setOwn((o) => ({ url, updatedAt: url === o.url ? o.updatedAt : undefined }))
+              }} />
+          </div>
+        </details>
         {info && <p className="muted">{info}</p>}
         <label className="file">
           {lessons.length ? 'Загрузить другой .ics' : 'Загрузить .ics'}
@@ -270,6 +290,8 @@ export default function ScheduleScreen() {
         )}
       </header>
 
+      {picker === 'group' && <Picker kind="students" onClose={() => setPicker(null)} onPick={(_, url) => pickOwn(url)} />}
+
       <div className="modes">
         {([['mine', 'Моё'], ['teachers', 'Преподаватели'], ['both', 'Вместе']] as const).map(([m, label]) => (
           <button key={m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)}>{label}</button>
@@ -278,14 +300,21 @@ export default function ScheduleScreen() {
 
       {mode !== 'mine' && (
         <section className="summary tmanage">
+          <button className="primary" disabled={busy} onClick={() => setPicker(picker === 'lecturer' ? null : 'lecturer')}>
+            Выбрать преподавателя из списка
+          </button>
+          {picker === 'lecturer' && <Picker kind="lecturers" onClose={() => setPicker(null)} onPick={(_, url) => addTeacherByUrl(url)} />}
           <label className="file small">
-            Добавить преподавателя (.ics)
+            Загрузить .ics файлом
             <input type="file" accept=".ics,text/calendar" onChange={(e) => { onTeacherFile(e.target.files?.[0]); e.target.value = '' }} />
           </label>
-          <div className="srcrow">
-            <input placeholder="Ссылка на .ics преподавателя" value={teacherUrl} onChange={(e) => setTeacherUrl(e.target.value)} />
-            <button disabled={busy || !teacherUrl} onClick={addTeacherByUrl}>Добавить</button>
-          </div>
+          <details className="manual">
+            <summary>Вставить ссылку на .ics вручную</summary>
+            <div className="srcrow">
+              <input placeholder="Ссылка на .ics преподавателя" value={teacherUrl} onChange={(e) => setTeacherUrl(e.target.value)} />
+              <button disabled={busy || !teacherUrl} onClick={() => addTeacherByUrl()}>Добавить</button>
+            </div>
+          </details>
           <label className="check">
             <input type="checkbox" checked={showMatches} onChange={(e) => setShowMatches(e.target.checked)} />
             Показывать пары, совпадающие по времени с моими

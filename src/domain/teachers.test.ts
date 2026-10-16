@@ -1,3 +1,4 @@
+// Путь: src/domain/teachers.test.ts
 import { describe, expect, it } from 'vitest'
 import { emptyHidden, parseIcs, visibleLessons, type Hidden, type Lesson } from './schedule'
 import { classifyCalendar, icsName, matchesFor, teacherDay } from './teachers'

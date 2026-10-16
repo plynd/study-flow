@@ -1,3 +1,4 @@
+// Путь: src/domain/schedule.test.ts
 import { describe, expect, it } from 'vitest'
 import {
   building, dayBounds, emptyHidden, fmtTime, groupByDate, lessonKey, parseIcs,

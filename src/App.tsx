@@ -1,3 +1,4 @@
+// Путь: src/App.tsx
 import { useState } from 'react'
 import DebtsScreen from './screens/DebtsScreen'
 import ScheduleScreen from './screens/ScheduleScreen'

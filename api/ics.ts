@@ -1,3 +1,4 @@
+// Путь: api/ics.ts
 // Серверная функция (Vercel): берёт .ics с сайта расписания и отдаёт приложению.
 // Только ссылки asu.ru/timetable/…?file=N.ics; редиректы не следуем; при 403/429 останавливаемся.
 import { validateIcsUrl } from '../src/domain/sources'
