@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { depthOf, icsUrlFor, isLeaf, parseDirectory, parseSearch, searchUrl, validateDirPath, validateQuery } from './directory'
 import links from './__fixtures__/lecturers-links.html?raw'
+import searchResult from './__fixtures__/search-result.html?raw'
 
 describe('parseDirectory', () => {
   const base = '/timetable/lecturers/17/1109745016/'
@@ -70,7 +71,16 @@ describe('поиск', () => {
     expect(validateQuery('Иванов-Петров И.').ok).toBe(true)
     expect(validateQuery('a&b=c').ok).toBe(false)
   })
-  it('адрес поиска', () => expect(searchUrl('Гер', 'lecturers')).toContain('search_in=lecturers'))
+  it('адрес поиска как на сайте', () =>
+    expect(searchUrl('Гер', 'lecturers')).toBe('https://www.asu.ru/timetable/search/lecturers/?query=%D0%93%D0%B5%D1%80'))
+  it('настоящая страница результатов: преподаватель, кафедра и институт в подписи', () => {
+    const r = parseSearch(searchResult, 'lecturers')
+    expect(r).toHaveLength(1)
+    expect(r[0].path).toBe('/timetable/lecturers/17/82/597/')
+    expect(r[0].name).toBe('Герман О.И. (доц.)')
+    expect(r[0].hint).toContain('Экономической безопасности')
+    expect(r[0].hint).toContain('МИЭМИС')
+  })
   it('результаты: только преподаватели, без дублей, с подписью', () => {
     const html = `<a href="/timetable/lecturers/17/82/597/">Герман О.И.</a>, кафедра информатики<br>
       <a href="/timetable/lecturers/17/82/597/">Герман О.И.</a>

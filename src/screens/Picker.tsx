@@ -1,5 +1,6 @@
 // Путь: src/screens/Picker.tsx
 import { useEffect, useState } from 'react'
+import { IconChevronRight } from '../ui/icons'
 import { LEAF_DEPTH, depthOf, icsUrlFor, rootPath, type DirItem, type DirKind, type SearchItem } from '../domain/directory'
 
 const K_CACHE = 'dir-cache-v1'
@@ -52,10 +53,10 @@ async function searchSite(q: string, kind: DirKind): Promise<SearchResult> {
 interface Props {
   kind: DirKind
   onPick: (item: DirItem, icsUrl: string) => void
-  onClose: () => void
 }
 
-export default function Picker({ kind, onPick, onClose }: Props) {
+/** Содержимое листа выбора: поиск сверху, ниже — результаты или список по уровням */
+export default function Picker({ kind, onPick }: Props) {
   // стек шагов: [корень, институт, кафедра…]
   const [stack, setStack] = useState<{ path: string; title: string }[]>([
     { path: rootPath(kind), title: kind === 'lecturers' ? 'Институты' : 'Институты и факультеты' },
@@ -97,52 +98,78 @@ export default function Picker({ kind, onPick, onClose }: Props) {
   const shown = items.filter((i) => i.name.toLowerCase().includes(q.trim().toLowerCase()))
 
   return (
-    <section className="summary picker">
-      <div className="pickhead">
-        <strong>{stack.map((s) => s.title).join(' › ')}</strong>
-        <button onClick={onClose}>Закрыть</button>
+    <>
+      <div className="pick-top">
+        <div className="search-field">
+          <input className="input" type="search" autoComplete="off" enterKeyHint="search"
+            aria-label="Поиск"
+            placeholder={kind === 'lecturers' ? 'Фамилия преподавателя (от 3 букв)' : 'Номер группы (от 3 символов)'}
+            value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        {!ready && stack.length > 1 && (
+          <div>
+            <button className="back-btn" onClick={() => setStack((s) => s.slice(0, -1))}>
+              <span style={{ transform: 'scaleX(-1)', display: 'grid' }}><IconChevronRight size={18} /></span>
+              {stack[stack.length - 2].title}
+            </button>
+          </div>
+        )}
+        {!ready && <p className="crumbs">{cur.title}</p>}
       </div>
-      {stack.length > 1 && <button onClick={() => setStack((s) => s.slice(0, -1))}>← Назад</button>}
-      <input
-        placeholder={kind === 'lecturers' ? 'Поиск: введи фамилию (от 3 букв)' : 'Поиск: введи номер группы (от 3 символов)'}
-        value={q} onChange={(e) => setQ(e.target.value)} />
+
       {ready ? (
         <>
-          {searching && <p className="muted">Ищу на сайте…</p>}
-          {searchErr && <p className="muted err">{searchErr}</p>}
-          <ul className="list">
-            {hits.map((it) => (
-              <li key={it.path}>
-                <button className="pickitem" onClick={() => onPick(it, icsUrlFor(it.path))}>
-                  {it.name}{it.hint && <span className="muted"> · {it.hint}</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
+          {searching && <p className="status-line">Ищу на сайте…</p>}
+          {searchErr && <p className="status-line err-text">{searchErr}</p>}
+          {hits.length > 0 && (
+            <ul className="group">
+              {hits.map((it) => (
+                <li key={it.path}>
+                  <button className="row" onClick={() => onPick(it, icsUrlFor(it.path))}>
+                    <span className="row-main">
+                      <span className="row-title">{it.name}</span>
+                      {it.hint && <span className="row-sub">{it.hint}</span>}
+                    </span>
+                    <span className="chev"><IconChevronRight /></span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           {!searching && !searchErr && hits.length === 0 && (
             <>
-              <p className="muted">По запросу ничего не найдено.</p>
-              {debug && <p className="muted dbg">Диагностика: {debug}</p>}
+              <p className="status-line">По запросу ничего не найдено.</p>
+              {debug && (
+                <details className="footnote">
+                  <summary>Подробности для отладки</summary>
+                  <p className="dbg">{debug}</p>
+                </details>
+              )}
             </>
           )}
         </>
       ) : (
         <>
-          {loading && <p className="muted">Загружаю список…</p>}
-          {error && <p className="muted err">{error}</p>}
-          <ul className="list">
-            {shown.map((it) => (
-              <li key={it.path}>
-                <button className="pickitem" onClick={() => {
-                  if (depthOf(it.path, kind) >= LEAF_DEPTH[kind]) onPick(it, icsUrlFor(it.path))
-                  else setStack((s) => [...s, { path: it.path, title: it.name }])
-                }}>{it.name}</button>
-              </li>
-            ))}
-          </ul>
-          {!loading && !error && shown.length === 0 && <p className="muted">Ничего не найдено.</p>}
+          {loading && <p className="status-line">Загружаю список…</p>}
+          {error && <p className="status-line err-text">{error}</p>}
+          {shown.length > 0 && (
+            <ul className="group">
+              {shown.map((it) => (
+                <li key={it.path}>
+                  <button className="row" onClick={() => {
+                    if (depthOf(it.path, kind) >= LEAF_DEPTH[kind]) onPick(it, icsUrlFor(it.path))
+                    else setStack((s) => [...s, { path: it.path, title: it.name }])
+                  }}>
+                    <span className="row-main"><span className="row-title">{it.name}</span></span>
+                    <span className="chev"><IconChevronRight /></span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!loading && !error && shown.length === 0 && <p className="status-line">Ничего не найдено.</p>}
         </>
       )}
-    </section>
+    </>
   )
 }

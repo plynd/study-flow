@@ -6,6 +6,11 @@ import {
   type Hidden, type Lesson,
 } from '../domain/schedule'
 import Picker from './Picker'
+import Sheet from '../ui/Sheet'
+import Segmented from '../ui/Segmented'
+import Toast from '../ui/Toast'
+import { makeNotice, type Notice } from '../ui/notice'
+import { IconChevronLeft, IconChevronRight, IconMore, IconRefresh, IconTune } from '../ui/icons'
 import { PAUSE_MS, agoText, canRefresh, isLecturerUrl, minutesLeft, validateIcsUrl } from '../domain/sources'
 import { classifyCalendar, icsName, matchesFor, teacherDay, type Tag, type TeacherCal, type TeacherEntry } from '../domain/teachers'
 
@@ -31,18 +36,21 @@ function read<T>(key: string, fallback: T): T {
 export default function ScheduleScreen() {
   const [lessons, setLessons] = useState<Lesson[]>(() => read<Lesson[]>(K_LESSONS, []))
   const [hidden, setHidden] = useState<Hidden>(() => read<Hidden>(K_HIDDEN, emptyHidden()))
-  const [menuUid, setMenuUid] = useState<string | null>(null)
-  const [showHidden, setShowHidden] = useState(false)
-  const [error, setError] = useState('')
+  const [menuLesson, setMenuLesson] = useState<Lesson | null>(null)
+  const [settings, setSettings] = useState(false)
+  const [hiddenSheet, setHiddenSheet] = useState(false)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [week, setWeek] = useState<string | null>(null)
+  const [day, setDay] = useState<string | null>(null)
   const [mode, setMode] = useState<Mode>('mine')
   const [teachers, setTeachers] = useState<TeacherCal[]>(() => read<TeacherCal[]>(K_TEACHERS, []))
   const [own, setOwn] = useState<Source>(() => read<Source>(K_OWN, { url: '' }))
   const [teacherUrl, setTeacherUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [picker, setPicker] = useState<null | 'group' | 'lecturer'>(null)
-  const [info, setInfo] = useState('')
   const [now, setNow] = useState(() => Date.now())
+  const say = (text: string, tone: 'info' | 'error' = 'info', undo?: () => void) =>
+    setNotice(makeNotice(text, tone, undo && { label: 'Отменить', run: undo }))
   const [showMatches, setShowMatches] = useState<boolean>(() => read<boolean>(K_SHOW, true))
 
   useEffect(() => {
@@ -94,6 +102,7 @@ export default function ScheduleScreen() {
     })
   }
 
+
   /**
    * Единая точка входа для любого расписания (файл или ссылка).
    * Проверяет, чьё оно, чтобы расписание преподавателя не попало в «Моё» и наоборот.
@@ -113,7 +122,7 @@ export default function ScheduleScreen() {
       return { ok: true, msg: `Это расписание преподавателя${name ? ` («${name}»)` : ''}, поэтому я добавил его в «Преподаватели», а твоё расписание не тронул.` }
     }
     if (target === 'teacher' && kind === 'group') {
-      return { ok: false, msg: `Это расписание группы («${name}»), а не преподавателя. Его место — вверху, в поле «Моё расписание».` }
+      return { ok: false, msg: `Это расписание группы («${name}»), а не преподавателя. Группу выбирают в «Источниках», в разделе «Моя группа».` }
     }
     if (target === 'own') {
       setLessons(parsed) // новый файл заменяет старое расписание; скрытия сохраняются
@@ -127,7 +136,8 @@ export default function ScheduleScreen() {
   /** Кнопка «Обновить»: источники по очереди, с паузой; кулдаун 30 мин; стоп при 403/429 */
   async function refreshAll() {
     if (own.url && isLecturerUrl(own.url)) {
-      setError('Ссылка в поле «Моё расписание» ведёт на страницу преподавателя. Вставь туда ссылку на свою группу.')
+      say('Ссылка в «Моей группе» ведёт на страницу преподавателя. Выбери там свою группу.', 'error')
+      setSettings(true)
       return
     }
     const jobs: { label: string; src: Source; apply: (text: string) => { ok: boolean; msg: string } }[] = []
@@ -138,10 +148,11 @@ export default function ScheduleScreen() {
         apply: (text) => acceptCalendar(text, 'teacher', { sourceUrl: t.sourceUrl, teacherId: t.id }),
       })
     }
-    if (jobs.length === 0) { setInfo('Нет ссылок для обновления. Вставь ссылку на .ics.'); return }
+    if (jobs.length === 0) { say('Пока нечего обновлять. Выбери группу в «Источниках».'); setSettings(true); return }
 
-    setBusy(true); setInfo(''); setError('')
+    setBusy(true); setNotice(null)
     const notes: string[] = []
+    let failed = false
     let first = true
     for (const j of jobs) {
       const t0 = Date.now()
@@ -149,255 +160,382 @@ export default function ScheduleScreen() {
       if (!first) await sleep(PAUSE_MS)
       first = false
       const r = await fetchIcs(j.src.url)
-      if ('error' in r) { notes.push(`${j.label}: ${r.error}`); if (r.stop) break; continue }
+      if ('error' in r) { failed = true; notes.push(`${j.label}: ${r.error}`); if (r.stop) break; continue }
       notes.push(`${j.label}: ${j.apply(r.text).msg}`)
     }
-    setInfo(notes.join(' · '))
+    say(notes.join(' · '), failed ? 'error' : 'info')
     setNow(Date.now())
     setBusy(false)
   }
 
   async function pickOwn(url: string) {
-    setPicker(null); setBusy(true); setError(''); setInfo('')
+    setPicker(null); setBusy(true); setNotice(null)
     const r = await fetchIcs(url)
-    if ('error' in r) { setError(r.error); setBusy(false); return }
+    if ('error' in r) { say(r.error, 'error'); setBusy(false); return }
     const res = acceptCalendar(r.text, 'own', { sourceUrl: url })
-    if (res.ok) setInfo(res.msg === 'обновлено' ? '' : res.msg); else setError(res.msg)
+    if (res.ok) say(res.msg === 'обновлено' ? 'Расписание группы загружено' : res.msg); else say(res.msg, 'error')
     setNow(Date.now()); setBusy(false)
   }
 
   async function addTeacherByUrl(picked?: string) {
     const v = validateIcsUrl(picked ?? teacherUrl)
-    if (!v.ok) { setError(v.reason); return }
-    setBusy(true); setError('')
+    if (!v.ok) { say(v.reason, 'error'); return }
+    setBusy(true); setNotice(null)
     const r = await fetchIcs(v.url)
-    if ('error' in r) { setError(r.error); setBusy(false); return }
+    if ('error' in r) { say(r.error, 'error'); setBusy(false); return }
     const res = acceptCalendar(r.text, 'teacher', { sourceUrl: v.url })
-    if (res.ok) { setTeacherUrl(''); setPicker(null) } else setError(res.msg)
+    if (res.ok) { setTeacherUrl(''); setPicker(null); say('Преподаватель добавлен') } else say(res.msg, 'error')
     setBusy(false)
   }
 
   async function onTeacherFile(file: File | undefined) {
     if (!file) return
     const res = acceptCalendar(await file.text(), 'teacher', { fileName: file.name.replace(/\.ics$/i, '') })
-    setError(res.ok ? '' : res.msg)
+    if (res.ok) say('Преподаватель добавлен'); else say(res.msg, 'error')
   }
 
   async function onFile(file: File | undefined) {
     if (!file) return
     const res = acceptCalendar(await file.text(), 'own', { fileName: file.name.replace(/\.ics$/i, '') })
-    if (res.ok) { setError(''); setInfo(res.msg === 'обновлено' ? '' : res.msg) } else setError(res.msg)
+    if (res.ok) say(res.msg === 'обновлено' ? 'Расписание загружено' : res.msg); else say(res.msg, 'error')
   }
 
-  const add = (field: keyof Hidden, v: string) => {
+  /** Скрыть что-то и дать возможность отменить (ничего не пропадает насовсем) */
+  const hide = (field: keyof Hidden, v: string, text: string) => {
+    const prev = hidden
     setHidden((h) => ({ ...h, [field]: h[field].includes(v) ? h[field] : [...h[field], v] }))
-    setMenuUid(null)
+    setMenuLesson(null)
+    say(text, 'info', () => setHidden(prev))
   }
   const remove = (field: keyof Hidden, v: string) =>
     setHidden((h) => ({ ...h, [field]: h[field].filter((x) => x !== v) }))
 
   /** «Это моя»: скрыть остальные из параллельных (пара повторяется каждую неделю) */
   const pickMine = (l: Lesson) => {
+    const prev = hidden
     const keys = parallelOf(l, lessons).map(lessonKey)
     setHidden((h) => ({ ...h, keys: [...new Set([...h.keys, ...keys])] }))
-    setMenuUid(null)
+    say(`Выбрано: «${l.subject}». Остальные параллельные пары скрыты.`, 'info', () => setHidden(prev))
   }
 
+  const today = todayStr()
   const visible = visibleLessons(lessons, hidden)
   const hiddenCount = lessons.length - visible.length
   const weeks = weeksOf(lessons)
-  const current = week && weeks.includes(week) ? week : weeks.length ? defaultWeek(weeks, todayStr()) : null
+  const current = week && weeks.includes(week) ? week : weeks.length ? defaultWeek(weeks, today) : null
   const idx = current ? weeks.indexOf(current) : -1
-  const inWeek = (d: string) => !!current && d >= current && d <= addDays(current, 6)
+  const weekDays = current ? Array.from({ length: 7 }, (_, i) => addDays(current, i)) : []
+  const inWeek = (d: string) => weekDays.includes(d)
   const ownByDate = new Map(groupByDate(visible.filter((l) => inWeek(l.date))))
   const dates = new Set<string>(mode === 'teachers' ? [] : ownByDate.keys())
   if (mode !== 'mine') for (const t of teachers) for (const l of t.lessons) if (inWeek(l.date) && !l.remote) dates.add(l.date)
-  const days = [...dates].sort()
+  // Какой день на экране: выбранный → сегодня → первый с парами → понедельник
+  const selected = day && weekDays.includes(day) ? day
+    : weekDays.includes(today) ? today
+    : weekDays.find((d) => dates.has(d)) ?? weekDays[0] ?? null
+
+  const goWeek = (w: string) => { setWeek(w); setDay(null) }
 
   const tcard = (e: TeacherEntry, name: string) => (
-    <li key={name + e.lesson.uid} className={`card tlesson ${e.tag}`}>
-      <div className="head">
-        <span className="time">{fmtTime(e.lesson.start)}–{fmtTime(e.lesson.end)} · {e.lesson.kind}</span>
-        <span className="title">{e.lesson.subject}</span>
-        <span className="muted">
-          ауд. {e.lesson.room}{building(e.lesson.room) ? ` (корпус ${building(e.lesson.room)})` : ''} · {name}
+    <li key={name + e.lesson.uid} className={`lesson teacher ${e.tag}`}>
+      <div className="lesson-main" style={{ cursor: 'default' }}>
+        <span className="l-time"><b>{fmtTime(e.lesson.start)}</b><i>{fmtTime(e.lesson.end)}</i></span>
+        <span className="l-bar" />
+        <span className="l-body">
+          <span className="l-title">{e.lesson.subject}</span>
+          <span className="l-meta">
+            {e.lesson.kind} · ауд. {e.lesson.room}{building(e.lesson.room) ? ` (корпус ${building(e.lesson.room)})` : ''}
+          </span>
+          <span className="l-tag">{tagText(e.tag, e)}</span>
         </span>
-        <span className="badge">{tagText(e.tag, e)}</span>
+        <span />
       </div>
     </li>
   )
 
   const card = (l: Lesson, par: Lesson[], color: number | null) => (
-    <li key={l.uid} className={`card lesson ${l.remote ? 'remote' : ''} ${color !== null ? 'p' + color : ''}`}>
-      <button className="head" onClick={() => setMenuUid(menuUid === l.uid ? null : l.uid)}>
-        <span className="time">{fmtTime(l.start)}–{fmtTime(l.end)} · {l.kind}</span>
-        <span className="title">{l.subject}</span>
-        <span className="muted">
-          {l.remote ? 'дистанционно · только для информации' : `ауд. ${l.room}${building(l.room) ? ` (корпус ${building(l.room)})` : ''}`}
-          {l.teacher && ` · ${l.teacher}`}
+    <li key={l.uid} className={`lesson ${l.remote ? 'remote' : ''} ${color !== null ? 'p' + color : ''}`}>
+      <button className="lesson-main" onClick={() => setMenuLesson(l)} aria-label={`${l.subject}, действия`}>
+        <span className="l-time"><b>{fmtTime(l.start)}</b><i>{fmtTime(l.end)}</i></span>
+        <span className="l-bar" />
+        <span className="l-body">
+          <span className="l-title">{l.subject}</span>
+          <span className="l-meta">
+            {l.kind} · {l.remote ? 'дистанционно, только для информации' : `ауд. ${l.room}${building(l.room) ? ` (корпус ${building(l.room)})` : ''}`}
+          </span>
+          {l.teacher && <span className="l-meta">{l.teacher}</span>}
         </span>
+        <span className="l-more"><IconMore /></span>
       </button>
       {par.length > 0 && (
-        <div className="actions menu"><button className="primary" onClick={() => pickMine(l)}>Это моя пара</button></div>
-      )}
-      {menuUid === l.uid && (
-        <div className="actions menu">
-          <button onClick={() => add('keys', lessonKey(l))}>Скрыть пару (каждую неделю)</button>
-          <button onClick={() => add('uids', l.uid)}>Скрыть только это занятие</button>
-          <button onClick={() => add('subjects', l.subject)}>Скрыть предмет</button>
-        </div>
+        <button className="btn-tint pick press" onClick={() => pickMine(l)}>Это моя пара</button>
       )}
     </li>
   )
 
+  // Что показать в выбранный день
+  const ls = selected ? ownByDate.get(selected) ?? [] : []
+  const b = dayBounds(ls)
+  const tdays = !selected || mode === 'mine' ? [] : teachers.map((t) => ({
+    t,
+    r: teacherDay(mode === 'teachers' ? [] : ls, t.lessons.filter((l) => l.date === selected), matchesFor(t, showMatches)),
+  })).filter(({ r }) => r.entries.length > 0 || r.hiddenRemote > 0)
+  const hasContent = (mode !== 'teachers' && ls.length > 0) || tdays.length > 0
+
+  const sub = own.url
+    ? `${own.label ?? 'Моё расписание'} · ${agoText(own.updatedAt, now)}`
+    : lessons.length ? 'Загружено из файла' : 'Группа не выбрана'
+
   return (
-    <main className="app">
-      <header className="summary">
-        <h1>Расписание</h1>
-        <div className="srcrow">
-          <button disabled={busy} onClick={() => setPicker(picker === 'group' ? null : 'group')}>
-            {own.url ? 'Сменить группу' : 'Выбрать группу из списка'}
-          </button>
-          <button className="primary" disabled={busy} onClick={refreshAll}>{busy ? 'Обновляю…' : 'Обновить'}</button>
+    <main>
+      <header className="navbar">
+        <h1 className="large-title">Расписание</h1>
+        <div className="nav-actions">
+          <button className={`icon-btn press ${busy ? 'spin' : ''}`} aria-label="Обновить расписание" disabled={busy} onClick={refreshAll}><IconRefresh /></button>
+          <button className="icon-btn press" aria-label="Источники и настройки" onClick={() => setSettings(true)}><IconTune /></button>
         </div>
-        {own.url && <p className="muted">{own.label ?? 'Моё расписание'} · {agoText(own.updatedAt, now)}</p>}
-        <details className="manual">
-          <summary>Вставить ссылку на .ics вручную</summary>
-          <div className="srcrow">
-            <input placeholder="Ссылка на .ics группы (…/?file=….ics)" value={own.url}
-              onChange={(e) => {
-                const url = e.target.value
-                if (isLecturerUrl(url)) {
-                  setError('Это ссылка на расписание преподавателя. Её нужно вставлять ниже, в «Преподаватели» (режим «Вместе»).')
-                  return
-                }
-                setError('')
-                setOwn((o) => ({ url, updatedAt: url === o.url ? o.updatedAt : undefined }))
-              }} />
-          </div>
-        </details>
-        {info && <p className="muted">{info}</p>}
-        <label className="file">
-          {lessons.length ? 'Загрузить другой .ics' : 'Загрузить .ics'}
-          <input type="file" accept=".ics,text/calendar" onChange={(e) => onFile(e.target.files?.[0])} />
-        </label>
-        {error && <p className="muted err">{error}</p>}
-        {lessons.length > 0 && (
-          <p className="muted">
-            Пар в файле: {lessons.length}
-            {hiddenCount > 0 && <> · скрыто {hiddenCount} · <a href="#h" onClick={(e) => { e.preventDefault(); setShowHidden(true) }}>управлять</a></>}
-          </p>
-        )}
       </header>
+      <p className="caption subtitle">{sub}</p>
 
-      {picker === 'group' && <Picker kind="students" onClose={() => setPicker(null)} onPick={(_, url) => pickOwn(url)} />}
+      {lessons.length === 0 && teachers.length === 0 ? (
+        <div className="empty">
+          <p className="headline">Расписания пока нет</p>
+          <p className="caption">Выбери свою группу из списка сайта АлтГУ, и здесь появятся пары по дням.</p>
+          <button className="btn-primary press" onClick={() => setPicker('group')}>Выбрать группу</button>
+          <button className="btn-plain small" onClick={() => setSettings(true)}>Другие способы</button>
+        </div>
+      ) : (
+        <>
+          <div className="sticky-top">
+            <Segmented label="Что показывать" value={mode} onChange={setMode}
+              options={[{ value: 'mine', label: 'Моё' }, { value: 'teachers', label: 'Преподаватели' }, { value: 'both', label: 'Вместе' }]} />
+            {current && (
+              <>
+                <div className="weekrow">
+                  <span className="left-spacer" />
+                  <span className="mid">
+                    <button className="nav press" disabled={idx <= 0} onClick={() => goWeek(weeks[idx - 1])} aria-label="Предыдущая неделя"><IconChevronLeft /></button>
+                    <span className="title num">{fmtWeek(current)}</span>
+                    <button className="nav press" disabled={idx >= weeks.length - 1} onClick={() => goWeek(weeks[idx + 1])} aria-label="Следующая неделя"><IconChevronRight size={22} /></button>
+                  </span>
+                  <button className={`today ${selected === today ? 'ghost' : ''}`} tabIndex={selected === today ? -1 : 0}
+                    onClick={() => { setWeek(null); setDay(null) }}>Сегодня</button>
+                </div>
+                <div className="strip" role="tablist" aria-label="Дни недели">
+                  {weekDays.map((d, i) => (
+                    <button key={d} role="tab" aria-selected={d === selected}
+                      className={`daychip press ${d === selected ? 'on' : ''} ${d === today ? 'today' : ''}`}
+                      onClick={() => setDay(d)} aria-label={`${weekdayName(d)} ${fmtDate(d)}`}>
+                      <span className="dow">{DAYS[i]}</span>
+                      <span className="dom">{+d.slice(8, 10)}</span>
+                      <span className={`dot ${dates.has(d) ? '' : 'none'}`} />
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
-      <div className="modes">
-        {([['mine', 'Моё'], ['teachers', 'Преподаватели'], ['both', 'Вместе']] as const).map(([m, label]) => (
-          <button key={m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)}>{label}</button>
-        ))}
-      </div>
+          {selected && (
+            <>
+              <div className="day-head">
+                <h2 className="day-title">{weekdayName(selected)}, {fmtDate(selected)}</h2>
+                {mode !== 'teachers' && (b || ls.length > 0) && (
+                  <p className="caption">{b ? `Очные пары с ${fmtTime(b.start)} до ${fmtTime(b.end)}` : 'Без очных пар'}</p>
+                )}
+              </div>
 
-      {mode !== 'mine' && (
-        <section className="summary tmanage">
-          <button className="primary" disabled={busy} onClick={() => setPicker(picker === 'lecturer' ? null : 'lecturer')}>
-            Выбрать преподавателя из списка
+              {!hasContent && (
+                <div className="empty">
+                  <p className="headline">Пар нет</p>
+                  <p className="caption">{hiddenCount > 0 ? 'В этот день пар нет, либо они скрыты.' : 'В этот день пар нет.'}</p>
+                </div>
+              )}
+
+              {mode !== 'teachers' && ls.length > 0 && (
+                <ul className="stack">
+                  {dayBlocks(ls).map((block) =>
+                    block.length === 1
+                      ? card(block[0], [], null)
+                      : (
+                        <li key={block[0].uid} className="parallel">
+                          <p className="par-label">Параллельно: выбери свою пару</p>
+                          <ul className="stack">{block.map((l, i) => card(l, parallelOf(l, block), i % 4))}</ul>
+                        </li>
+                      ),
+                  )}
+                </ul>
+              )}
+
+              {tdays.map(({ t, r }) => (
+                <div key={t.id} className="tblock">
+                  <p className="tname">{t.name}</p>
+                  <ul className="stack">{r.entries.map((e) => tcard(e, t.name))}</ul>
+                  {r.hiddenRemote > 0 && <p className="footnote">Скрыто пар без аудитории: {r.hiddenRemote}</p>}
+                </div>
+              ))}
+            </>
+          )}
+        </>
+      )}
+
+      {/* Действия над парой */}
+      <Sheet open={!!menuLesson} onClose={() => setMenuLesson(null)} title={menuLesson?.subject ?? ''}>
+        {menuLesson && (
+          <>
+            {menuLesson.subject.length > 28 && <p className="headline" style={{ textAlign: 'center', paddingTop: '.75rem' }}>{menuLesson.subject}</p>}
+            <p className="caption" style={{ textAlign: 'center' }}>
+              {weekdayName(menuLesson.date)} {fmtDate(menuLesson.date)}, {fmtTime(menuLesson.start)}–{fmtTime(menuLesson.end)}
+            </p>
+            <h3 className="section-title">Скрыть</h3>
+            <div className="group">
+              <button className="row" onClick={() => hide('uids', menuLesson.uid, 'Занятие скрыто')}>
+                <span className="row-main">
+                  <span className="row-title">Только это занятие</span>
+                  <span className="row-sub">{fmtDate(menuLesson.date)}</span>
+                </span>
+              </button>
+              <button className="row" onClick={() => hide('keys', lessonKey(menuLesson), 'Пара скрыта на все недели')}>
+                <span className="row-main">
+                  <span className="row-title">Эту пару каждую неделю</span>
+                  <span className="row-sub">{weekdayName(menuLesson.date)}, {fmtTime(menuLesson.start)}</span>
+                </span>
+              </button>
+              <button className="row" onClick={() => hide('subjects', menuLesson.subject, 'Предмет скрыт')}>
+                <span className="row-main">
+                  <span className="row-title">Предмет целиком</span>
+                  <span className="row-sub">Все пары «{menuLesson.subject}»</span>
+                </span>
+              </button>
+            </div>
+            <p className="footnote">Скрытое можно вернуть в «Источниках» → «Скрытое».</p>
+          </>
+        )}
+      </Sheet>
+
+      {/* Источники и настройки */}
+      <Sheet open={settings} onClose={() => setSettings(false)} title="Источники">
+        <h3 className="section-title">Моя группа</h3>
+        <div className="group">
+          <div className="row">
+            <span className="row-main">
+              <span className="row-title strong">{own.label ?? (lessons.length ? 'Расписание из файла' : 'Группа не выбрана')}</span>
+              {lessons.length > 0 && <span className="row-sub">Пар: {lessons.length}{own.url ? ` · ${agoText(own.updatedAt, now)}` : ''}</span>}
+            </span>
+          </div>
+          <button className="row accent" disabled={busy} onClick={() => setPicker('group')}>
+            <span className="row-title">{own.url ? 'Сменить группу' : 'Выбрать группу из списка'}</span>
           </button>
-          {picker === 'lecturer' && <Picker kind="lecturers" onClose={() => setPicker(null)} onPick={(_, url) => addTeacherByUrl(url)} />}
-          <label className="file small">
-            Загрузить .ics файлом
-            <input type="file" accept=".ics,text/calendar" onChange={(e) => { onTeacherFile(e.target.files?.[0]); e.target.value = '' }} />
+          <label className="row accent">
+            <span className="row-title">Загрузить файл .ics</span>
+            <input type="file" accept=".ics,text/calendar" onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = '' }} />
           </label>
-          <details className="manual">
-            <summary>Вставить ссылку на .ics вручную</summary>
-            <div className="srcrow">
-              <input placeholder="Ссылка на .ics преподавателя" value={teacherUrl} onChange={(e) => setTeacherUrl(e.target.value)} />
-              <button disabled={busy || !teacherUrl} onClick={() => addTeacherByUrl()}>Добавить</button>
+          <details className="row-details">
+            <summary className="row">
+              <span className="row-main"><span className="row-title">Вставить ссылку вручную</span></span>
+              <span className="chev"><IconChevronRight /></span>
+            </summary>
+            <div className="details-body">
+              <input className="input boxed" placeholder="Ссылка на .ics группы (…/?file=….ics)" aria-label="Ссылка на .ics группы" value={own.url}
+                onChange={(e) => {
+                  const url = e.target.value
+                  if (isLecturerUrl(url)) {
+                    say('Это ссылка на расписание преподавателя. Её место ниже, в «Преподавателях».', 'error')
+                    return
+                  }
+                  setNotice(null)
+                  setOwn((o) => ({ url, updatedAt: url === o.url ? o.updatedAt : undefined }))
+                }} />
+              <p className="caption">После вставки нажми ↻ вверху экрана.</p>
             </div>
           </details>
-          <label className="check">
-            <input type="checkbox" checked={showMatches} onChange={(e) => setShowMatches(e.target.checked)} />
-            Показывать пары, совпадающие по времени с моими
-          </label>
-          {teachers.map((t) => (
-            <div key={t.id} className="trow">
-              <input value={t.name} onChange={(e) => patchTeacher(t.id, { name: e.target.value })} />
-              <select value={t.showMatches === undefined ? 'def' : t.showMatches ? 'yes' : 'no'}
-                onChange={(e) => patchTeacher(t.id, { showMatches: e.target.value === 'def' ? undefined : e.target.value === 'yes' })}>
-                <option value="def">совпадения: как везде</option>
-                <option value="yes">совпадения: показывать</option>
-                <option value="no">совпадения: скрывать</option>
-              </select>
-              <span className="muted">{agoText(t.updatedAt, now)}</span>
-              <button className="danger" onClick={() => setTeachers((ts) => ts.filter((x) => x.id !== t.id))}>Убрать</button>
-            </div>
-          ))}
-          {teachers.length === 0 && <p className="muted">Преподавателей пока нет. Загрузи .ics преподавателя с сайта расписания.</p>}
-        </section>
-      )}
-
-      {lessons.length === 0 && <p className="muted">Загрузи файл расписания группы (.ics), и здесь появятся пары по дням.</p>}
-
-      {current && (
-        <div className="weeknav">
-          <button disabled={idx <= 0} onClick={() => setWeek(weeks[idx - 1])} aria-label="Предыдущая неделя">←</button>
-          <span>{fmtWeek(current)}</span>
-          <button disabled={idx >= weeks.length - 1} onClick={() => setWeek(weeks[idx + 1])} aria-label="Следующая неделя">→</button>
         </div>
-      )}
-      {current && days.length === 0 && <p className="muted">На этой неделе пар нет (или всё скрыто).</p>}
 
-      {days.map((date) => {
-        const ls = ownByDate.get(date) ?? []
-        const b = dayBounds(ls)
-        const tdays = mode === 'mine' ? [] : teachers.map((t) => ({
-          t,
-          r: teacherDay(mode === 'teachers' ? [] : ls, t.lessons.filter((l) => l.date === date), matchesFor(t, showMatches)),
-        }))
-        return (
-          <section key={date} className="day">
-            <h2>
-              {weekdayName(date)} {fmtDate(date)}
-              {mode !== 'teachers' && <span className="muted">{b ? ` · день ${fmtTime(b.start)}–${fmtTime(b.end)}` : ' · без очных пар'}</span>}
-            </h2>
-            {mode !== 'teachers' && (
-              <ul className="list">
-                {dayBlocks(ls).map((block) =>
-                  block.length === 1
-                    ? card(block[0], [], null)
-                    : (
-                      <li key={block[0].uid} className="parallel">
-                        <p className="parlabel">Параллельно — выбери свою пару</p>
-                        <ul className="list">{block.map((l, i) => card(l, parallelOf(l, block), i % 4))}</ul>
-                      </li>
-                    ),
-                )}
-              </ul>
-            )}
-            {tdays.map(({ t, r }) => (r.entries.length > 0 || r.hiddenRemote > 0) && (
-              <div key={t.id} className="tblock">
-                <p className="parlabel tl">{t.name}</p>
-                <ul className="list">{r.entries.map((e) => tcard(e, t.name))}</ul>
-                {r.hiddenRemote > 0 && <p className="muted">скрыто {r.hiddenRemote} пар без аудитории</p>}
+        <h3 className="section-title">Преподаватели</h3>
+        <div className="group">
+          {teachers.map((t) => (
+            <details key={t.id} className="row-details">
+              <summary className="row">
+                <span className="row-main">
+                  <span className="row-title strong">{t.name}</span>
+                  <span className="row-sub">{agoText(t.updatedAt, now)}</span>
+                </span>
+                <span className="chev"><IconChevronRight /></span>
+              </summary>
+              <div className="details-body">
+                <input className="input boxed" aria-label="Имя" value={t.name} onChange={(e) => patchTeacher(t.id, { name: e.target.value })} />
+                <select className="input boxed" aria-label="Совпадения по времени" value={t.showMatches === undefined ? 'def' : t.showMatches ? 'yes' : 'no'}
+                  onChange={(e) => patchTeacher(t.id, { showMatches: e.target.value === 'def' ? undefined : e.target.value === 'yes' })}>
+                  <option value="def">Совпадения: как в общих настройках</option>
+                  <option value="yes">Совпадения: показывать</option>
+                  <option value="no">Совпадения: скрывать</option>
+                </select>
+                <button className="btn-plain danger small" style={{ justifySelf: 'start' }}
+                  onClick={() => { const prev = teachers; setTeachers((ts) => ts.filter((x) => x.id !== t.id)); say(`«${t.name}» убран`, 'info', () => setTeachers(prev)) }}>
+                  Убрать преподавателя
+                </button>
               </div>
-            ))}
-          </section>
-        )
-      })}
+            </details>
+          ))}
+          {teachers.length === 0 && <div className="row"><span className="row-sub">Пока никого нет.</span></div>}
+          <button className="row accent" disabled={busy} onClick={() => setPicker('lecturer')}>
+            <span className="row-title">Добавить из списка</span>
+          </button>
+          <label className="row accent">
+            <span className="row-title">Загрузить файл .ics</span>
+            <input type="file" accept=".ics,text/calendar" onChange={(e) => { onTeacherFile(e.target.files?.[0]); e.target.value = '' }} />
+          </label>
+          <details className="row-details">
+            <summary className="row">
+              <span className="row-main"><span className="row-title">Вставить ссылку вручную</span></span>
+              <span className="chev"><IconChevronRight /></span>
+            </summary>
+            <div className="details-body">
+              <input className="input boxed" placeholder="Ссылка на .ics преподавателя" aria-label="Ссылка на .ics преподавателя" value={teacherUrl} onChange={(e) => setTeacherUrl(e.target.value)} />
+              <button className="btn-tint press" disabled={busy || !teacherUrl} onClick={() => addTeacherByUrl()}>Добавить</button>
+            </div>
+          </details>
+        </div>
 
-      {(showHidden || hiddenCount > 0) && (
-        <section className="day">
-          <button onClick={() => setShowHidden(!showHidden)}>{showHidden ? 'Свернуть «Скрытые»' : 'Скрытые'}</button>
-          {showHidden && (
-            <ul className="list hiddenList">
-              {hidden.subjects.map((s) => <Rule key={'s' + s} text={`Предмет: ${s}`} onBack={() => remove('subjects', s)} />)}
-              {hidden.keys.map((k) => <Rule key={'k' + k} text={keyText(k)} onBack={() => remove('keys', k)} />)}
-              {hidden.uids.map((u) => <Rule key={'u' + u} text={uidText(u, lessons)} onBack={() => remove('uids', u)} />)}
-              {hidden.subjects.length + hidden.keys.length + hidden.uids.length === 0 && <p className="muted">Ничего не скрыто.</p>}
-            </ul>
-          )}
-        </section>
-      )}
+        <h3 className="section-title">Показ</h3>
+        <div className="group">
+          <label className="row">
+            <span className="row-main">
+              <span className="row-title">Пары, совпадающие с моими</span>
+              <span className="row-sub">Показывать пары преподавателя, идущие в то же время, что и мои</span>
+            </span>
+            <input type="checkbox" role="switch" className="switch" checked={showMatches} onChange={(e) => setShowMatches(e.target.checked)} />
+          </label>
+          <button className="row" onClick={() => setHiddenSheet(true)}>
+            <span className="row-main"><span className="row-title">Скрытое</span></span>
+            <span className="trail">{hiddenCount > 0 ? `${hiddenCount} пар` : 'ничего'}<span className="chev"><IconChevronRight /></span></span>
+          </button>
+        </div>
+        <p className="footnote">Расписание обновляется кнопкой ↻ вверху экрана, не чаще раза в 30 минут для каждого источника: сайт университета не перегружается.</p>
+      </Sheet>
+
+      {/* Скрытое */}
+      <Sheet open={hiddenSheet} onClose={() => setHiddenSheet(false)} title="Скрытое">
+        {hidden.subjects.length + hidden.keys.length + hidden.uids.length === 0 ? (
+          <p className="status-line" style={{ textAlign: 'center', paddingTop: '1.5rem' }}>Ничего не скрыто.</p>
+        ) : (
+          <div className="group" style={{ marginTop: '.75rem' }}>
+            {hidden.subjects.map((x) => <Rule key={'s' + x} text={`Предмет: ${x}`} onBack={() => remove('subjects', x)} />)}
+            {hidden.keys.map((k) => <Rule key={'k' + k} text={keyText(k)} onBack={() => remove('keys', k)} />)}
+            {hidden.uids.map((u) => <Rule key={'u' + u} text={uidText(u, lessons)} onBack={() => remove('uids', u)} />)}
+          </div>
+        )}
+      </Sheet>
+
+      {/* Выбор группы / преподавателя из списка сайта */}
+      <Sheet open={picker === 'group'} onClose={() => setPicker(null)} title="Выбор группы">
+        <Picker kind="students" onPick={(_, url) => pickOwn(url)} />
+      </Sheet>
+      <Sheet open={picker === 'lecturer'} onClose={() => setPicker(null)} title="Выбор преподавателя">
+        <Picker kind="lecturers" onPick={(_, url) => addTeacherByUrl(url)} />
+      </Sheet>
+
+      <Toast notice={notice} onClose={() => setNotice(null)} />
     </main>
   )
 }
@@ -408,18 +546,18 @@ function todayStr() {
 }
 
 function tagText(tag: Tag, e: TeacherEntry) {
-  if (tag === 'before') return 'последняя пара до твоего дня'
-  if (tag === 'after') return 'первая пара после твоего дня'
-  if (tag === 'inside') return e.match ? `совпадает с твоей парой «${e.match.subject}»` : 'в окне твоего дня'
-  return 'очная пара'
+  if (tag === 'before') return 'Последняя пара до твоего дня'
+  if (tag === 'after') return 'Первая пара после твоего дня'
+  if (tag === 'inside') return e.match ? `Совпадает с твоей парой «${e.match.subject}»` : 'В окне твоего дня'
+  return 'Очная пара'
 }
 
 function Rule({ text, onBack }: { text: string; onBack: () => void }) {
   return (
-    <li className="card rule">
-      <span>{text}</span>
-      <button onClick={onBack}>Вернуть</button>
-    </li>
+    <div className="row">
+      <span className="row-main"><span className="row-title">{text}</span></span>
+      <button className="btn-plain small" onClick={onBack}>Вернуть</button>
+    </div>
   )
 }
 

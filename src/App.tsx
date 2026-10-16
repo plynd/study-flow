@@ -1,18 +1,40 @@
 // Путь: src/App.tsx
-import { useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import DebtsScreen from './screens/DebtsScreen'
 import ScheduleScreen from './screens/ScheduleScreen'
+import { IconCalendar, IconDebts } from './ui/icons'
 import './index.css'
 
+type Tab = 'debts' | 'schedule'
+const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
+  { id: 'debts', label: 'Долги', icon: <IconDebts /> },
+  { id: 'schedule', label: 'Расписание', icon: <IconCalendar /> },
+]
+
 export default function App() {
-  const [tab, setTab] = useState<'debts' | 'schedule'>('debts')
+  const [tab, setTab] = useState<Tab>('debts')
+  const scrolls = useRef<Record<Tab, number>>({ debts: 0, schedule: 0 })
+
+  // Экраны остаются в памяти (скрытые), чтобы не терять неделю, день и открытые настройки
+  const go = (next: Tab) => {
+    if (next === tab) { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
+    scrolls.current[tab] = window.scrollY
+    setTab(next)
+    requestAnimationFrame(() => window.scrollTo(0, scrolls.current[next]))
+  }
+
   return (
     <>
-      <nav className="tabs">
-        <button className={tab === 'debts' ? 'on' : ''} onClick={() => setTab('debts')}>Долги</button>
-        <button className={tab === 'schedule' ? 'on' : ''} onClick={() => setTab('schedule')}>Расписание</button>
+      <div hidden={tab !== 'debts'} className="screen"><DebtsScreen /></div>
+      <div hidden={tab !== 'schedule'} className="screen"><ScheduleScreen /></div>
+      <nav className="tabbar" aria-label="Разделы">
+        {TABS.map((t) => (
+          <button key={t.id} className="tab press" aria-current={tab === t.id ? 'page' : undefined} onClick={() => go(t.id)}>
+            {t.icon}
+            <span>{t.label}</span>
+          </button>
+        ))}
       </nav>
-      {tab === 'debts' ? <DebtsScreen /> : <ScheduleScreen />}
     </>
   )
 }

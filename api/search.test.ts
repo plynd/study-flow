@@ -18,7 +18,7 @@ describe('api/search', () => {
     const body = await r.json()
     expect(r.status).toBe(200)
     expect(body.items.map((i: { name: string }) => i.name)).toEqual(['Герман О.И.', 'Германова А.А.'])
-    expect(f.mock.calls[0][0]).toBe('https://www.asu.ru/timetable/search/?query=%D0%93%D0%B5%D1%80%D0%BC&search_in=lecturers')
+    expect(f.mock.calls[0][0]).toBe('https://www.asu.ru/timetable/search/lecturers/?query=%D0%93%D0%B5%D1%80%D0%BC')
   })
   it('короткий или странный запрос на сайт не уходит', async () => {
     const f = vi.fn(); vi.stubGlobal('fetch', f)
