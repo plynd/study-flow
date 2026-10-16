@@ -41,6 +41,11 @@ export default function Sheet({ open, onClose, title, leading, trailing, childre
   const view = open ? { title, leading, trailing, children } : kept.current
 
   const height = () => panel.current?.offsetHeight ?? 600
+  // Сколько нужно проехать вниз, чтобы лист целиком ушёл за край окна (на телефоне и по центру на мониторе)
+  const offscreen = () => {
+    const r = panel.current?.getBoundingClientRect()
+    return r ? window.innerHeight - (r.top - y.current) + 16 : height()
+  }
 
   const apply = () => {
     const p = panel.current
@@ -67,7 +72,7 @@ export default function Sheet({ open, onClose, title, leading, trailing, childre
     if (open && !mounted) { setMounted(true); return }
     if (!panel.current) return
     if (open) {
-      if (!wasOpen.current) { y.current = height(); apply() } // стартуем за нижним краем
+      if (!wasOpen.current) { y.current = 0; y.current = offscreen(); apply() } // стартуем за нижним краем
       wasOpen.current = true
       run(0)
       panel.current.focus({ preventScroll: true })
@@ -75,7 +80,7 @@ export default function Sheet({ open, onClose, title, leading, trailing, childre
       wasOpen.current = false
       const v = releaseV.current
       releaseV.current = 0
-      run(height(), SPRING_SHEET, v, () => setMounted(false))
+      run(offscreen(), SPRING_SHEET, v, () => setMounted(false))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mounted])

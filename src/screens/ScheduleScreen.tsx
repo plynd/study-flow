@@ -305,7 +305,7 @@ export default function ScheduleScreen() {
           <button className="btn-plain small" onClick={() => setSettings(true)}>Другие способы</button>
         </div>
       ) : (
-        <>
+        <div className="sched-grid">
           <div className="sticky-top">
             <Segmented label="Что показывать" value={mode} onChange={setMode}
               options={[{ value: 'mine', label: 'Моё' }, { value: 'teachers', label: 'Преподаватели' }, { value: 'both', label: 'Вместе' }]} />
@@ -336,6 +336,7 @@ export default function ScheduleScreen() {
             )}
           </div>
 
+          <div className="sched-day">
           {selected && (
             <>
               <div className="day-head">
@@ -376,7 +377,8 @@ export default function ScheduleScreen() {
               ))}
             </>
           )}
-        </>
+          </div>
+        </div>
       )}
 
       {/* Действия над парой */}

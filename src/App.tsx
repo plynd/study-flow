@@ -28,6 +28,7 @@ export default function App() {
       <div hidden={tab !== 'debts'} className="screen"><DebtsScreen /></div>
       <div hidden={tab !== 'schedule'} className="screen"><ScheduleScreen /></div>
       <nav className="tabbar" aria-label="Разделы">
+        <span className="side-brand">Долги и расписание</span>
         {TABS.map((t) => (
           <button key={t.id} className="tab press" aria-current={tab === t.id ? 'page' : undefined} onClick={() => go(t.id)}>
             {t.icon}

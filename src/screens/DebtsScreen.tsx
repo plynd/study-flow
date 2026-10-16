@@ -84,6 +84,8 @@ export default function DebtsScreen() {
         </div>
       </header>
 
+      <div className="debts-grid">
+      <div className="debts-side">
       {debts.length === 0 ? (
         <div className="empty">
           <p className="headline">Долгов нет</p>
@@ -105,6 +107,8 @@ export default function DebtsScreen() {
         </section>
       )}
 
+      </div>
+      <div className="debts-list">
       {SECTIONS.map(({ status, title }) => {
         const list = debts.filter((d) => debtStatus(d) === status)
         if (list.length === 0) return null
@@ -134,6 +138,8 @@ export default function DebtsScreen() {
           </section>
         )
       })}
+      </div>
+      </div>
 
       {/* Детали долга */}
       <Sheet open={!!open} onClose={closeSheet} title={open?.subject ?? ''}>
