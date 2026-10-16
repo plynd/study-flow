@@ -29,10 +29,13 @@ export default function App() {
   const patch = (id: string, p: Partial<Debt>) =>
     setDebts((ds) => ds.map((d) => (d.id === id ? { ...d, ...p } : d)))
 
-  const toggleWork = (debtId: string, workId: string) =>
-    setDebts((ds) => ds.map((d) => d.id !== debtId ? d : {
-      ...d, works: d.works.map((w) => (w.id === workId ? { ...w, done: !w.done } : w)),
-    }))
+  const toggleWork = (debtId: string, workId: string) => {
+    const d = debts.find((x) => x.id === debtId)
+    if (!d) return
+    const next = { ...d, works: d.works.map((w) => (w.id === workId ? { ...w, done: !w.done } : w)) }
+    if (debtStatus(next) === 'closed') setOpenId(null)
+    setDebts((ds) => ds.map((x) => (x.id === debtId ? next : x)))
+  }
 
   const addWork = (d: Debt) =>
     patch(d.id, { works: [...d.works, { id: uid(), title: `Работа ${d.works.length + 1}`, done: false }] })
@@ -98,7 +101,10 @@ export default function App() {
                   <div className="actions">
                     <button onClick={() => addWork(d)}>+ работа</button>
                     <button onClick={() => removeLastWork(d)} disabled={d.works.length === 0}>− работа</button>
-                    <button onClick={() => patch(d.id, { closedManually: !d.closedManually })}>
+                    <button onClick={() => {
+                      patch(d.id, { closedManually: !d.closedManually })
+                      setOpenId(null)
+                    }}>
                       {d.closedManually ? 'Открыть снова' : 'Закрыть без работ'}
                     </button>
                     <button className="danger" onClick={() => {
