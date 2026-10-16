@@ -1,3 +1,4 @@
+/* Путь: src/index.css */
 :root {
   --bg: #f5f6f8; --card: #fff; --text: #1b1d21; --muted: #6b7280; --line: #e3e5ea;
   --accent: #2f6fed; --ok: #1f9d55; --warn: #c27c0e; --danger: #d33;
@@ -78,3 +79,8 @@ a { color: var(--accent); }
 .srcrow input { flex: 1; min-width: 0; }
 .srcrow button { white-space: nowrap; }
 .summary .srcrow .primary { width: auto; padding: 8px 14px; }
+.picker { display: grid; gap: 8px; }
+.pickhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pickitem { width: 100%; text-align: left; }
+.manual summary { cursor: pointer; color: var(--muted); font-size: 14px; margin-bottom: 8px; }
+.dbg { font-size: 12px; word-break: break-all; }

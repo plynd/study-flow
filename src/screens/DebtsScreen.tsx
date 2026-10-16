@@ -1,3 +1,4 @@
+// Путь: src/screens/DebtsScreen.tsx
 import { useEffect, useState } from 'react'
 import {
   STATUS_LABEL, debtProgress, debtStatus, makeWorks, totalProgress, type Debt,
