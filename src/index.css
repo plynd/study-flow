@@ -1,3 +1,4 @@
+/* Путь: src/index.css */
 :root {
   --bg: #f5f6f8; --card: #fff; --text: #1b1d21; --muted: #6b7280; --line: #e3e5ea;
   --accent: #2f6fed; --ok: #1f9d55; --warn: #c27c0e; --danger: #d33;
@@ -38,3 +39,48 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .actions .primary { width: auto; }
 button.danger { color: var(--danger); }
 .add { background: var(--card); border-radius: 14px; padding: 14px; display: grid; gap: 10px; }
+.tabs { max-width: 560px; margin: 0 auto; padding: 12px 16px 0; display: flex; gap: 8px; }
+.tabs button { flex: 1; }
+.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.file { display: inline-block; background: var(--accent); color: #fff; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+.file input { display: none; }
+.err { color: var(--danger); }
+.day h2 { font-size: 16px; margin: 16px 0 8px; }
+.day h2 .muted { font-weight: 400; }
+.lesson .time { font-size: 13px; color: var(--accent); font-weight: 600; }
+.lesson.remote { opacity: .55; border-left-color: var(--line); }
+.menu { padding: 0 14px 14px; }
+.rule { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px; font-size: 14px; }
+a { color: var(--accent); }
+.weeknav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.weeknav span { font-weight: 600; }
+.weeknav button { min-width: 56px; font-size: 18px; }
+.parallel { list-style: none; border: 2px dashed var(--accent); border-radius: 16px; padding: 8px; background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.parlabel { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--accent); }
+.parallel .list { margin: 0; }
+.card.p0 { border-left-color: #2f6fed; } .card.p1 { border-left-color: #d9480f; }
+.card.p2 { border-left-color: #7c3aed; } .card.p3 { border-left-color: #0f9d8a; }
+.card.p0 .time { color: #2f6fed; } .card.p1 .time { color: #d9480f; }
+.card.p2 .time { color: #7c3aed; } .card.p3 .time { color: #0f9d8a; }
+.card.p1, .card.p3 { background: color-mix(in srgb, var(--card) 92%, var(--accent)); }
+.modes { display: flex; gap: 8px; margin-bottom: 12px; }
+.modes button { flex: 1; }
+.modes button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tmanage { display: grid; gap: 10px; }
+.file.small { font-size: 14px; padding: 8px 12px; justify-self: start; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--text); }
+.trow { display: grid; gap: 6px; }
+.tblock { margin-top: 10px; }
+.parlabel.tl { color: var(--ok); }
+.tlesson { border-left-color: var(--ok); }
+.tlesson .time { color: var(--ok); }
+.tlesson.before, .tlesson.after { opacity: .85; border-left-style: dashed; }
+.srcrow { display: flex; gap: 8px; margin-bottom: 8px; }
+.srcrow input { flex: 1; min-width: 0; }
+.srcrow button { white-space: nowrap; }
+.summary .srcrow .primary { width: auto; padding: 8px 14px; }
+.picker { display: grid; gap: 8px; }
+.pickhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pickitem { width: 100%; text-align: left; }
+.manual summary { cursor: pointer; color: var(--muted); font-size: 14px; margin-bottom: 8px; }
+.dbg { font-size: 12px; word-break: break-all; }

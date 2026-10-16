@@ -1,3 +1,4 @@
+// Путь: src/data/sample.ts
 import { makeWorks, type Debt } from '../domain/debts'
 
 const done = (n: number, k: number, p: string) =>
