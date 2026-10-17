@@ -4,10 +4,15 @@ import {
   debtProgress, debtStatus, makeWorks, totalProgress, type Debt, type DebtStatus,
 } from '../domain/debts'
 import { sampleDebts } from '../data/sample'
+import Picker from './Picker'
+import DataSheet from './DataSheet'
 import Sheet from '../ui/Sheet'
+import { addTeacherFromUrl } from '../data/addTeacher'
+import { useTeachers } from '../data/teachersStore'
+import { surnameKey } from '../domain/insights'
 import Toast from '../ui/Toast'
 import { makeNotice, type Notice } from '../ui/notice'
-import { IconCheck, IconChevronRight, IconMinus, IconPlus } from '../ui/icons'
+import { IconCheck, IconChevronRight, IconMinus, IconMore, IconPlus } from '../ui/icons'
 
 const KEY = 'debts-v1'
 const uid = () => Math.random().toString(36).slice(2, 9)
@@ -33,6 +38,10 @@ export default function DebtsScreen() {
   const [adding, setAdding] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [teachers] = useTeachers()
+  const [finding, setFinding] = useState<{ query: string; key: number } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [dataOpen, setDataOpen] = useState(false)
 
   useEffect(() => {
     try { localStorage.setItem(KEY, JSON.stringify(debts)) } catch { /* ignore */ }
@@ -42,8 +51,19 @@ export default function DebtsScreen() {
   const open = debts.find((d) => d.id === openId) ?? null
   const patch = (id: string, p: Partial<Debt>) =>
     setDebts((ds) => ds.map((d) => (d.id === id ? { ...d, ...p } : d)))
-  const say = (text: string, undo?: () => void) =>
-    setNotice(makeNotice(text, 'info', undo && { label: 'Отменить', run: undo }))
+  const say = (text: string, undo?: () => void, tone: 'info' | 'error' = 'info') =>
+    setNotice(makeNotice(text, tone, undo && { label: 'Отменить', run: undo }))
+  const found = (d: Debt) => {
+    const k = surnameKey(d.teacher ?? '')
+    return k ? teachers.find((t) => surnameKey(t.name) === k) : undefined
+  }
+  async function pickTeacher(url: string) {
+    if (busy) return
+    setBusy(true)
+    const r = await addTeacherFromUrl(url)
+    setBusy(false)
+    if (r.ok) { setFinding(null); say(`Расписание добавлено: ${r.name}`) } else say(r.msg, undefined, 'error')
+  }
   const closeSheet = () => { setOpenId(null); setConfirmDelete(false) }
 
   const toggleWork = (d: Debt, workId: string) => {
@@ -80,6 +100,7 @@ export default function DebtsScreen() {
       <header className="navbar">
         <h1 className="large-title">Долги</h1>
         <div className="nav-actions">
+          <button className="icon-btn press" aria-label="Резервная копия" onClick={() => setDataOpen(true)}><IconMore /></button>
           <button className="icon-btn press" aria-label="Добавить долг" onClick={() => setAdding(true)}><IconPlus /></button>
         </div>
       </header>
@@ -168,6 +189,24 @@ export default function DebtsScreen() {
               </div>
             </div>
 
+            <h3 className="section-title">Преподаватель</h3>
+            <div className="group">
+              <input className="input" placeholder="Фамилия, например Шукшин" aria-label="Преподаватель" value={open.teacher ?? ''}
+                onChange={(e) => patch(open.id, { teacher: e.target.value })} />
+            </div>
+            {open.teacher?.trim() && !found(open) && (
+              <div className="group" style={{ marginTop: '.5rem' }}>
+                <button className="row accent" onClick={() => setFinding({ query: open.teacher!.trim().split(/[\s.,(]+/)[0], key: Date.now() })}>
+                  <span className="row-title">Найти расписание преподавателя</span>
+                </button>
+              </div>
+            )}
+            <p className="footnote">
+              {found(open)
+                ? `Расписание найдено: ${found(open)!.name}. Когда и где его застать — на вкладке «Расписание».`
+                : 'По фамилии в расписании найдётся, когда и где его застать.'}
+            </p>
+
             <h3 className="section-title">Что нужно сделать</h3>
             <div className="group">
               <textarea className="input" placeholder="Требования преподавателя" value={open.requirements ?? ''}
@@ -204,6 +243,13 @@ export default function DebtsScreen() {
         trailing={<button className="btn-plain" onClick={() => setAdding(false)}>Отмена</button>}>
         <AddForm onSave={(d) => { setDebts((ds) => [...ds, d]); setAdding(false); say(`«${d.subject}» добавлен`) }} />
       </Sheet>
+
+      {/* Поиск расписания преподавателя прямо из долга */}
+      <Sheet open={!!finding} onClose={() => setFinding(null)} title="Выбор преподавателя">
+        {finding && <Picker key={finding.key} kind="lecturers" initialQuery={finding.query} onPick={(_, url) => pickTeacher(url)} />}
+      </Sheet>
+
+      <DataSheet open={dataOpen} onClose={() => setDataOpen(false)} />
 
       <Toast notice={notice} onClose={() => setNotice(null)} />
     </main>

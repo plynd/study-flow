@@ -45,7 +45,12 @@
 
   --r-card: 1.5rem;
   --r-ctl: 999px;
-  --dock-h: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+  /* вырезы экрана: чёлка, Dynamic Island, полоса «домой». Через токены, чтобы можно было подменить (Telegram, тесты) */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --dock-h: calc(4.6rem + var(--sab));
   --side-w: 15.5rem;
   --ease: cubic-bezier(.2, .8, .2, 1);
 }
@@ -93,6 +98,12 @@ body {
   -webkit-font-smoothing: antialiased; font-optical-sizing: auto;
 }
 /* Мягкие цветные пятна: стеклу есть что преломлять */
+/* Под чёлкой и Dynamic Island: прокручиваемое содержимое мягко уходит в размытие, а не наезжает на часы */
+body::after {
+  content: ""; position: fixed; top: 0; left: 0; right: 0; height: var(--sat); z-index: 40; pointer-events: none;
+  background: var(--glass); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent);
+}
 body::before {
   content: ""; position: fixed; inset: -10%; z-index: -1; pointer-events: none;
   background:
@@ -118,7 +129,7 @@ button:disabled { opacity: .4; cursor: default; }
 .press { transition: transform .45s var(--ease), opacity .2s, background .2s; }
 .press:active:not(:disabled) { transform: scale(.95); transition-duration: .06s; }
 
-.screen { max-width: 40rem; margin: 0 auto; padding: 0 1rem calc(var(--dock-h) + 1.5rem); animation: fade .25s ease-out; }
+.screen { max-width: 40rem; margin: 0 auto; padding: 0 max(1rem, var(--sar)) calc(var(--dock-h) + 1.5rem) max(1rem, var(--sal)); animation: fade .25s ease-out; }
 
 /* ——— Стекло ——— */
 .icon-btn, .sticky-top, .tabbar, .toast, .sheet {
@@ -142,7 +153,7 @@ button:disabled { opacity: .4; cursor: default; }
 .err-text { color: var(--danger-text); }
 
 /* ——— Шапка экрана ——— */
-.navbar { display: flex; align-items: flex-end; justify-content: space-between; gap: .75rem; padding: max(1.1rem, env(safe-area-inset-top)) .25rem .25rem; }
+.navbar { display: flex; align-items: flex-end; justify-content: space-between; gap: .75rem; padding: max(1.1rem, calc(var(--sat) + .6rem)) .25rem .25rem; }
 .nav-actions { display: flex; gap: .6rem; padding-bottom: .15rem; }
 .subtitle { padding: 0 .25rem .85rem; min-height: 1.4rem; }
 
@@ -151,7 +162,7 @@ button:disabled { opacity: .4; cursor: default; }
 .icon-btn.spin svg { animation: spin 1s linear infinite; }
 
 /* Закреплённая зона (режимы + неделя): плавающее стекло, контент уходит под неё */
-.sticky-top { position: sticky; top: .5rem; z-index: 5; border-radius: 1.9rem; padding: .55rem .6rem .35rem; margin-bottom: .25rem; }
+.sticky-top { position: sticky; top: calc(var(--sat) + .5rem); z-index: 5; border-radius: 1.9rem; padding: .55rem .6rem .35rem; margin-bottom: .25rem; }
 
 /* ——— Сегмент-переключатель ——— */
 .seg { position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr); padding: 3px; border-radius: 99px; background: var(--fill); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .06); }
@@ -181,6 +192,14 @@ button:disabled { opacity: .4; cursor: default; }
 .daychip .dot { width: .3rem; height: .3rem; border-radius: 50%; background: var(--text-3); }
 .daychip.on .dot, .daychip.today .dot { background: var(--accent); }
 .daychip .dot.none { visibility: hidden; }
+
+/* ——— Смена недели и дня: содержимое «заезжает» с той стороны, куда листаем ——— */
+@keyframes swap-in { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * var(--swap-d, 2.5rem))); } to { opacity: 1; transform: none; } }
+.swap { animation: swap-in .5s var(--ease) both; }
+.swap-sm { --swap-d: 1rem; }
+.swap-md { --swap-d: 1.75rem; }
+.title-clip, .strip-clip { display: block; overflow: clip; }
+.title-clip { display: inline-block; }
 
 /* ——— День ——— */
 .day-head { padding: 1.1rem .5rem .65rem; display: grid; gap: .1rem; }
@@ -308,8 +327,8 @@ select.input.boxed { appearance: none; background-image: none; }
 .sheet-layer { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
 .sheet-scrim { position: absolute; inset: 0; background: var(--scrim); }
 .sheet {
-  position: relative; width: min(calc(100% - 1rem), 36rem); max-height: min(calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px)), 52rem);
-  margin: 0 0 calc(.5rem + env(safe-area-inset-bottom, 0px));
+  position: relative; width: min(calc(100% - 1rem), 36rem); max-height: min(calc(100dvh - 1.25rem - var(--sat) - var(--sab)), 52rem);
+  margin: 0 0 calc(.5rem + var(--sab));
   display: flex; flex-direction: column; outline: none; overflow: hidden;
   border-radius: 2.25rem; will-change: transform;
 }
@@ -320,7 +339,7 @@ select.input.boxed { appearance: none; background-image: none; }
 .sheet-side { display: flex; align-items: center; min-width: 0; }
 .sheet-side.end { justify-content: flex-end; }
 .sheet-side .btn-plain.strong { background: var(--glass-hi); border-radius: 99px; padding: .4rem .9rem; font-size: .9375rem; box-shadow: inset 1px 1px 0 rgba(255, 255, 255, .6), 0 0 0 .5px rgba(30, 40, 70, .08); }
-.sheet-body { overflow-y: auto; overscroll-behavior: contain; padding: .25rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); -webkit-overflow-scrolling: touch; }
+.sheet-body { overflow-y: auto; overscroll-behavior: contain; padding: .25rem 1rem calc(1.5rem + var(--sab)); -webkit-overflow-scrolling: touch; }
 .sheet-body > .section-title:first-child { padding-top: .6rem; }
 
 /* ——— Выбор из списка ——— */
@@ -334,13 +353,20 @@ select.input.boxed { appearance: none; background-image: none; }
 
 /* ——— Нижняя панель: плавающая «капсула» ——— */
 .tabbar {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(.65rem + env(safe-area-inset-bottom, 0px)); z-index: 20;
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(.65rem + var(--sab)); z-index: 20;
   width: min(calc(100% - 2rem), 22rem); height: 3.75rem; padding: .3rem; border-radius: 99px;
   display: flex; gap: .2rem;
 }
+.tabs { position: relative; flex: 1; display: flex; gap: .2rem; }
+.tab-thumb {
+  position: absolute; top: 0; bottom: 0; left: 0; width: calc((100% - .2rem * (var(--n) - 1)) / var(--n));
+  border-radius: 99px; background: var(--glass-hi); pointer-events: none;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, .6), 0 2px 10px rgba(30, 45, 90, .14), 0 0 0 .5px rgba(30, 40, 70, .06);
+  transform: translateX(calc(var(--i) * (100% + .2rem))); transition: transform .42s var(--ease);
+}
 .side-brand { display: none; }
-.tab { flex: 1; border-radius: 99px; display: grid; justify-items: center; align-content: center; gap: .1rem; color: var(--text-2); font-size: .6875rem; font-weight: 500; letter-spacing: .02em; transition: background .3s var(--ease), color .2s, transform .45s var(--ease); }
-.tab[aria-current=page] { color: var(--accent-text); background: var(--glass-hi); box-shadow: inset 1px 1px 0 rgba(255, 255, 255, .6), 0 2px 10px rgba(30, 45, 90, .14), 0 0 0 .5px rgba(30, 40, 70, .06); }
+.tab { position: relative; z-index: 1; flex: 1; border-radius: 99px; display: grid; justify-items: center; align-content: center; gap: .1rem; color: var(--text-2); font-size: .6875rem; font-weight: 500; letter-spacing: .02em; transition: color .25s, transform .45s var(--ease); }
+.tab[aria-current=page] { color: var(--accent-text); }
 
 /* ——— Уведомление ——— */
 .toast {
@@ -354,8 +380,31 @@ select.input.boxed { appearance: none; background-image: none; }
 .toast-action { color: var(--accent-text); font-weight: 600; font-size: .9375rem; padding: .4rem .7rem; border-radius: 99px; background: var(--glass-hi); }
 .toast-close { color: var(--text-2); width: 1.9rem; height: 1.9rem; border-radius: 50%; font-size: .8125rem; }
 
+/* ——— Сводка расписания (боковая панель) ——— */
+.side-card { background: var(--card); -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%); box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 255, 255, .5); border-radius: var(--r-card); padding: .85rem 1.1rem; display: grid; gap: .5rem; }
+.side-title { font-size: .8125rem; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.side-title .caption { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.next-btn { display: grid; gap: .15rem; text-align: left; border-radius: 1rem; margin: -.3rem; padding: .3rem; }
+.next-when { font-size: 1.35rem; font-weight: 700; letter-spacing: -.022em; color: var(--accent-text); }
+.next-name { font-size: 1.0625rem; font-weight: 600; line-height: 1.25; letter-spacing: -.014em; }
+.meets { display: grid; gap: .15rem; margin: 0 -.4rem; }
+.meet { display: grid; gap: .1rem; width: 100%; text-align: left; padding: .45rem .4rem; border-radius: .9rem; }
+button.meet:active { background: var(--fill); }
+.meet-top { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; }
+.meet-subj { font-weight: 600; font-size: .9375rem; letter-spacing: -.011em; }
+.meet-when { font-size: .875rem; font-weight: 600; color: var(--accent-text); white-space: nowrap; }
+.load { display: grid; grid-template-columns: repeat(7, 1fr); gap: .35rem; align-items: end; height: 5.6rem; }
+.load-col { display: grid; grid-template-rows: 1fr auto auto; justify-items: center; gap: .15rem; height: 100%; border-radius: .7rem; padding: .15rem 0; }
+.load-bar-wrap { display: flex; align-items: flex-end; width: 100%; padding: 0 .3rem; }
+.load-bar { display: block; width: 100%; border-radius: .45rem; background: var(--fill-strong); transition: height .5s var(--ease), background .2s; }
+.load-col.on .load-bar { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent)); }
+.load-n { font-size: .75rem; font-weight: 600; color: var(--text-2); min-height: 1em; }
+.load-d { font-size: .6875rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .02em; }
+
 /* Раскладка по колонкам включается только на широких экранах (ниже) */
 .debts-grid, .sched-grid { display: block; }
+.sched-side { display: contents; }   /* на телефоне обёртка не нужна: панель недели закрепляется сама */
+.aside { display: none; }
 
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -365,7 +414,7 @@ select.input.boxed { appearance: none; background-image: none; }
 @media (hover: hover) {
   button.row:hover, label.row:hover, summary.row:hover { background: var(--fill); }
   .icon-btn:hover:not(:disabled) { background: var(--glass-hi); }
-  .tab:hover:not([aria-current=page]) { background: var(--fill); }
+  .tab:hover:not([aria-current=page]) { color: var(--text); }
   .daychip:hover:not(.on) .dom { background: var(--fill); }
   .lesson-main:hover { background: var(--fill); }
   .weekrow .nav:hover:not(:disabled) { background: var(--fill); }
@@ -384,28 +433,39 @@ select.input.boxed { appearance: none; background-image: none; }
 /* ——— MacBook и монитор: боковая панель слева, две колонки ——— */
 @media (min-width: 960px) {
   :root { --dock-h: 1.5rem; }
-  .screen { max-width: none; margin: 0; padding: 0 2.5rem 3rem calc(var(--side-w) + 4rem); }
+  .screen { max-width: none; margin: 0; padding: 0 max(2rem, var(--sar)) 3rem calc(var(--side-w) + 3rem + var(--sal)); }
   .screen > main { max-width: 72rem; margin: 0 auto; }
   .navbar { padding-top: 2rem; }
 
   .tabbar {
-    left: 1rem; top: 1rem; bottom: 1rem; transform: none; width: var(--side-w); height: auto;
+    left: calc(1rem + var(--sal)); top: max(1rem, var(--sat)); bottom: max(1rem, var(--sab)); transform: none; width: var(--side-w); height: auto;
     flex-direction: column; justify-content: flex-start; gap: .3rem; padding: 1.1rem .75rem; border-radius: 2.25rem;
   }
   .side-brand { display: block; font-size: 1.0625rem; font-weight: 700; letter-spacing: -.02em; padding: .3rem 1rem 1rem; }
-  .tab { flex: none; display: flex; align-items: center; gap: .8rem; justify-items: unset; padding: .75rem 1rem; font-size: 1rem; font-weight: 500; letter-spacing: -.011em; }
+  .tabs { flex: none; flex-direction: column; gap: .3rem; }
+  .tab-thumb { width: 100%; height: 3rem; bottom: auto; transform: translateY(calc(var(--i) * 3.3rem)); }
+  .tab { flex: none; height: 3rem; display: flex; align-items: center; gap: .8rem; justify-items: unset; padding: 0 1rem; font-size: 1rem; font-weight: 500; letter-spacing: -.011em; }
   .tab[aria-current=page] { font-weight: 600; }
 
   .toast { left: calc(50% + var(--side-w) / 2 + .5rem); bottom: 1.5rem; }
 
-  .debts-grid { display: grid; grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr); gap: 2.5rem; align-items: start; }
-  .debts-side { position: sticky; top: 1.25rem; padding-top: .5rem; }
-  .debts-list > section:first-child .section-title { padding-top: .25rem; }
+  /* Долги: сводка — широкая полоса сверху, разделы — в две колонки (без пустого места слева) */
+  .debts-side { padding-top: .5rem; }
+  .hero { grid-template-columns: auto minmax(0, 1fr); column-gap: 2.5rem; align-items: center; padding: 1.4rem 1.8rem; }
+  .hero-top { grid-row: 1 / span 3; }
+  .hero-num { font-size: 4rem; }
+  .hero-cap, .hero .bar, .hero .caption { grid-column: 2; }
+  .debts-list { column-count: 2; column-gap: 1.5rem; }
+  .debts-list > section { break-inside: avoid; }
+  .debts-list > section .section-title { padding-top: .6rem; }
 
-  .sched-grid { display: grid; grid-template-columns: minmax(19rem, 22rem) minmax(0, 1fr); gap: 2.5rem; align-items: start; }
-  .sched-grid > .sticky-top { top: 1.25rem; }
+  /* Расписание: слева панель (режимы, неделя, дни) и сводка, справа выбранный день одной колонкой */
+  .sched-grid { display: grid; grid-template-columns: minmax(19rem, 22rem) minmax(0, 46rem); gap: 2.5rem; align-items: start; }
+  .sched-side { display: grid; gap: .75rem; position: sticky; top: 1.25rem; max-height: calc(100dvh - 2.5rem); overflow-y: auto; scrollbar-width: none; padding: .25rem; margin: -.25rem; }
+  .sched-side::-webkit-scrollbar { display: none; }
+  .sched-grid > .sched-side > .sticky-top { position: static; }
+  .aside { display: grid; gap: .75rem; }
   .sched-day .day-head { padding-top: .25rem; }
-  .sched-grid > .empty { grid-column: 1 / -1; }
 
   /* Листы на большом экране — окно по центру */
   .sheet-layer { align-items: center; }
@@ -414,9 +474,8 @@ select.input.boxed { appearance: none; background-image: none; }
 }
 
 @media (min-width: 1500px) {
-  .screen > main { max-width: 84rem; }
-  .debts-grid { grid-template-columns: 24rem minmax(0, 1fr); }
-  .sched-grid { grid-template-columns: 24rem minmax(0, 1fr); }
+  .screen > main { max-width: 90rem; }
+  .debts-list { column-count: 3; }
 }
 
 /* Запасной вариант, если браузер не умеет размывать фон */
@@ -441,4 +500,18 @@ select.input.boxed { appearance: none; background-image: none; }
 @media (prefers-contrast: more) {
   :root { --sep: currentColor; --text-2: var(--text); --glass: var(--surface); --glass-thick: var(--surface); --card: var(--surface); }
   .group, .lesson, .hero, .toast, .sheet, .tabbar, .sticky-top, .icon-btn { outline: 1px solid var(--text-3); }
+}
+
+/* ---------- Заметки ---------- */
+.notes-wrap { display: grid; gap: 1rem; }
+.notes-list .row { align-items: flex-start; }
+.note-title { display: flex; align-items: center; gap: .4rem; }
+.note-title .pin { color: var(--accent); display: inline-grid; flex: none; }
+.note-preview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.note-meta { font-size: .8125rem; color: var(--text-3); }
+.note-name { font-weight: 600; font-size: 1.125rem; }
+.note-body { min-height: 38dvh; resize: none; }
+select.input { appearance: none; -webkit-appearance: none; }
+@media (min-width: 960px) {
+  .notes-wrap { max-width: 46rem; }
 }

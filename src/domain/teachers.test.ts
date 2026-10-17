@@ -1,7 +1,7 @@
 // Путь: src/domain/teachers.test.ts
 import { describe, expect, it } from 'vitest'
 import { emptyHidden, parseIcs, visibleLessons, type Hidden, type Lesson } from './schedule'
-import { classifyCalendar, icsName, matchesFor, teacherDay } from './teachers'
+import { classifyCalendar, icsName, matchesFor, teacherDay, upsertTeacher } from './teachers'
 import ics from './__fixtures__/group.ics?raw'
 
 const all = parseIcs(ics)
@@ -70,4 +70,20 @@ describe('classifyCalendar', () => {
     expect(classifyCalendar('Герман О.И.', t)).toBe('teacher')
   })
   it('мало пар — не делаем выводов', () => expect(classifyCalendar('X', [g('2026-10-12', 900)])).toBe('unknown'))
+})
+
+describe('upsertTeacher', () => {
+  const t = (id: string, name: string, sourceUrl?: string) => ({ id, name, lessons: [], sourceUrl })
+  it('добавляет нового', () => {
+    const r = upsertTeacher([], 'Шукшин', [], 'u1', undefined, 5, () => 'n1')
+    expect(r).toEqual([{ id: 'n1', name: 'Шукшин', lessons: [], sourceUrl: 'u1', updatedAt: 5 }])
+  })
+  it('обновляет существующего по ссылке, не плодя дубли', () => {
+    const r = upsertTeacher([t('a', 'Старое имя', 'u1')], 'Новое имя', [], 'u1', undefined, 7)
+    expect(r).toHaveLength(1)
+    expect(r[0].updatedAt).toBe(7)
+  })
+  it('находит по названию, если ссылки нет', () => {
+    expect(upsertTeacher([t('a', 'Герман')], 'Герман', [])).toHaveLength(1)
+  })
 })

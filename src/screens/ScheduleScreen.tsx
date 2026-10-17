@@ -1,22 +1,24 @@
 // Путь: src/screens/ScheduleScreen.tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import {
   addDays, building, dayBlocks, dayBounds, defaultWeek, emptyHidden, fmtDate, fmtTime, fmtWeek,
-  groupByDate, lessonKey, parallelOf, parseIcs, visibleLessons, weekdayName, weeksOf,
+  groupByDate, lessonKey, weekStart, parallelOf, parseIcs, visibleLessons, weekdayName, weeksOf,
   type Hidden, type Lesson,
 } from '../domain/schedule'
 import Picker from './Picker'
+import ScheduleAside from './ScheduleAside'
 import Sheet from '../ui/Sheet'
 import Segmented from '../ui/Segmented'
 import Toast from '../ui/Toast'
 import { makeNotice, type Notice } from '../ui/notice'
 import { IconChevronLeft, IconChevronRight, IconMore, IconRefresh, IconTune } from '../ui/icons'
 import { PAUSE_MS, agoText, canRefresh, isLecturerUrl, minutesLeft, validateIcsUrl } from '../domain/sources'
-import { classifyCalendar, icsName, matchesFor, teacherDay, type Tag, type TeacherCal, type TeacherEntry } from '../domain/teachers'
+import { classifyCalendar, icsName, matchesFor, teacherDay, upsertTeacher, type Tag, type TeacherCal, type TeacherEntry } from '../domain/teachers'
+import { fetchIcs } from '../data/fetchIcs'
+import { useTeachers } from '../data/teachersStore'
 
 const K_LESSONS = 'schedule-lessons-v1'
 const K_HIDDEN = 'schedule-hidden-v1'
-const K_TEACHERS = 'schedule-teachers-v1'
 const K_SHOW = 'schedule-show-matches-v1'
 const K_OWN = 'schedule-own-source-v1'
 
@@ -33,7 +35,7 @@ function read<T>(key: string, fallback: T): T {
   return fallback
 }
 
-export default function ScheduleScreen() {
+export default function ScheduleScreen({ active = true }: { active?: boolean }) {
   const [lessons, setLessons] = useState<Lesson[]>(() => read<Lesson[]>(K_LESSONS, []))
   const [hidden, setHidden] = useState<Hidden>(() => read<Hidden>(K_HIDDEN, emptyHidden()))
   const [menuLesson, setMenuLesson] = useState<Lesson | null>(null)
@@ -42,8 +44,10 @@ export default function ScheduleScreen() {
   const [notice, setNotice] = useState<Notice | null>(null)
   const [week, setWeek] = useState<string | null>(null)
   const [day, setDay] = useState<string | null>(null)
+  // куда «едет» содержимое при смене недели или дня: 1 — вперёд, -1 — назад, 0 — пока не меняли (без анимации)
+  const [dir, setDir] = useState<0 | 1 | -1>(0)
   const [mode, setMode] = useState<Mode>('mine')
-  const [teachers, setTeachers] = useState<TeacherCal[]>(() => read<TeacherCal[]>(K_TEACHERS, []))
+  const [teachers, setTeachers] = useTeachers()
   const [own, setOwn] = useState<Source>(() => read<Source>(K_OWN, { url: '' }))
   const [teacherUrl, setTeacherUrl] = useState('')
   const [busy, setBusy] = useState(false)
@@ -61,9 +65,6 @@ export default function ScheduleScreen() {
   }, [hidden])
 
   useEffect(() => {
-    try { localStorage.setItem(K_TEACHERS, JSON.stringify(teachers)) } catch { /* ignore */ }
-  }, [teachers])
-  useEffect(() => {
     try { localStorage.setItem(K_SHOW, JSON.stringify(showMatches)) } catch { /* ignore */ }
   }, [showMatches])
 
@@ -75,33 +76,13 @@ export default function ScheduleScreen() {
     return () => clearInterval(id)
   }, [])
 
-  /** Один запрос к нашему серверу; stop=true — сайт просит остановиться */
-  async function fetchIcs(url: string): Promise<{ text: string } | { error: string; stop: boolean }> {
-    try {
-      const r = await fetch('/api/ics?url=' + encodeURIComponent(url))
-      if (r.ok) return { text: await r.text() }
-      let msg = `Ошибка ${r.status}.`
-      try { msg = (await r.json()).error ?? msg } catch { /* не json */ }
-      return { error: msg, stop: r.status === 429 }
-    } catch {
-      return { error: 'Нет связи с сервером приложения (на телефоне — проверь интернет).', stop: true }
-    }
-  }
-
   const patchTeacher = (id: string, p: Partial<TeacherCal>) =>
     setTeachers((ts) => ts.map((t) => (t.id === id ? { ...t, ...p } : t)))
 
   /** Добавить или обновить преподавателя: ищем по id, потом по ссылке, потом по названию */
   function saveTeacher(name: string, lessons: Lesson[], sourceUrl?: string, id?: string) {
-    setTeachers((ts) => {
-      const old = ts.find((t) => (id && t.id === id) || (sourceUrl && t.sourceUrl === sourceUrl) || t.name === name)
-      const extra = sourceUrl ? { sourceUrl, updatedAt: Date.now() } : {}
-      return old
-        ? ts.map((t) => (t === old ? { ...t, lessons, ...extra } : t))
-        : [...ts, { id: Math.random().toString(36).slice(2, 9), name, lessons, ...extra }]
-    })
+    setTeachers((ts) => upsertTeacher(ts, name, lessons, sourceUrl, id))
   }
-
 
   /**
    * Единая точка входа для любого расписания (файл или ссылка).
@@ -234,7 +215,12 @@ export default function ScheduleScreen() {
     : weekDays.includes(today) ? today
     : weekDays.find((d) => dates.has(d)) ?? weekDays[0] ?? null
 
-  const goWeek = (w: string) => { setWeek(w); setDay(null) }
+  const goWeek = (w: string) => { setDir(w > (current ?? '') ? 1 : -1); setWeek(w); setDay(null) }
+  const goDay = (d: string) => { setDir(d > (selected ?? '') ? 1 : -1); setWeek(weekStart(d)); setDay(d) }
+  const goToday = () => { setDir(today > (selected ?? '') ? 1 : -1); setWeek(null); setDay(null) }
+  const swap = (k: string, extra = '', base = '') => ({
+    key: k, className: [base, dir ? `swap ${extra}` : ''].filter(Boolean).join(' ') || undefined, style: { '--dir': dir } as CSSProperties,
+  })
 
   const tcard = (e: TeacherEntry, name: string) => (
     <li key={name + e.lesson.uid} className={`lesson teacher ${e.tag}`}>
@@ -306,6 +292,7 @@ export default function ScheduleScreen() {
         </div>
       ) : (
         <div className="sched-grid">
+          <div className="sched-side">
           <div className="sticky-top">
             <Segmented label="Что показывать" value={mode} onChange={setMode}
               options={[{ value: 'mine', label: 'Моё' }, { value: 'teachers', label: 'Преподаватели' }, { value: 'both', label: 'Вместе' }]} />
@@ -315,30 +302,33 @@ export default function ScheduleScreen() {
                   <span className="left-spacer" />
                   <span className="mid">
                     <button className="nav press" disabled={idx <= 0} onClick={() => goWeek(weeks[idx - 1])} aria-label="Предыдущая неделя"><IconChevronLeft /></button>
-                    <span className="title num">{fmtWeek(current)}</span>
+                    <span className="title-clip"><span {...swap(current, 'swap-sm')}><span className="title num">{fmtWeek(current)}</span></span></span>
                     <button className="nav press" disabled={idx >= weeks.length - 1} onClick={() => goWeek(weeks[idx + 1])} aria-label="Следующая неделя"><IconChevronRight size={22} /></button>
                   </span>
                   <button className={`today ${selected === today ? 'ghost' : ''}`} tabIndex={selected === today ? -1 : 0}
-                    onClick={() => { setWeek(null); setDay(null) }}>Сегодня</button>
+                    onClick={goToday}>Сегодня</button>
                 </div>
-                <div className="strip" role="tablist" aria-label="Дни недели">
+                <div className="strip-clip"><div {...swap(current, 'swap-md', 'strip')} role="tablist" aria-label="Дни недели">
                   {weekDays.map((d, i) => (
                     <button key={d} role="tab" aria-selected={d === selected}
                       className={`daychip press ${d === selected ? 'on' : ''} ${d === today ? 'today' : ''}`}
-                      onClick={() => setDay(d)} aria-label={`${weekdayName(d)} ${fmtDate(d)}`}>
+                      onClick={() => { setDir(d > (selected ?? '') ? 1 : -1); setDay(d) }} aria-label={`${weekdayName(d)} ${fmtDate(d)}`}>
                       <span className="dow">{DAYS[i]}</span>
                       <span className="dom">{+d.slice(8, 10)}</span>
                       <span className={`dot ${dates.has(d) ? '' : 'none'}`} />
                     </button>
                   ))}
-                </div>
+                </div></div>
               </>
             )}
+          </div>
+          <ScheduleAside visible={visible} teachers={teachers} active={active} selected={selected} weekDays={weekDays} now={now} today={today}
+            onPickDay={goDay} />
           </div>
 
           <div className="sched-day">
           {selected && (
-            <>
+            <div {...swap(selected)}>
               <div className="day-head">
                 <h2 className="day-title">{weekdayName(selected)}, {fmtDate(selected)}</h2>
                 {mode !== 'teachers' && (b || ls.length > 0) && (
@@ -375,7 +365,7 @@ export default function ScheduleScreen() {
                   {r.hiddenRemote > 0 && <p className="footnote">Скрыто пар без аудитории: {r.hiddenRemote}</p>}
                 </div>
               ))}
-            </>
+            </div>
           )}
           </div>
         </div>
