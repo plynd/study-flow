@@ -2,10 +2,11 @@
 import { useEffect, useState } from 'react'
 import {
   addDays, building, dayBlocks, dayBounds, defaultWeek, emptyHidden, fmtDate, fmtTime, fmtWeek,
-  groupByDate, lessonKey, parallelOf, parseIcs, visibleLessons, weekdayName, weeksOf,
+  groupByDate, lessonKey, weekStart, parallelOf, parseIcs, visibleLessons, weekdayName, weeksOf,
   type Hidden, type Lesson,
 } from '../domain/schedule'
 import Picker from './Picker'
+import ScheduleAside from './ScheduleAside'
 import Sheet from '../ui/Sheet'
 import Segmented from '../ui/Segmented'
 import Toast from '../ui/Toast'
@@ -33,7 +34,7 @@ function read<T>(key: string, fallback: T): T {
   return fallback
 }
 
-export default function ScheduleScreen() {
+export default function ScheduleScreen({ active = true }: { active?: boolean }) {
   const [lessons, setLessons] = useState<Lesson[]>(() => read<Lesson[]>(K_LESSONS, []))
   const [hidden, setHidden] = useState<Hidden>(() => read<Hidden>(K_HIDDEN, emptyHidden()))
   const [menuLesson, setMenuLesson] = useState<Lesson | null>(null)
@@ -306,6 +307,7 @@ export default function ScheduleScreen() {
         </div>
       ) : (
         <div className="sched-grid">
+          <div className="sched-side">
           <div className="sticky-top">
             <Segmented label="Что показывать" value={mode} onChange={setMode}
               options={[{ value: 'mine', label: 'Моё' }, { value: 'teachers', label: 'Преподаватели' }, { value: 'both', label: 'Вместе' }]} />
@@ -334,6 +336,9 @@ export default function ScheduleScreen() {
                 </div>
               </>
             )}
+          </div>
+          <ScheduleAside visible={visible} teachers={teachers} active={active} selected={selected} weekDays={weekDays} now={now} today={today}
+            onPickDay={(d) => { setWeek(weekStart(d)); setDay(d) }} />
           </div>
 
           <div className="sched-day">

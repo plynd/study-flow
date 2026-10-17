@@ -26,7 +26,7 @@ export default function App() {
   return (
     <>
       <div hidden={tab !== 'debts'} className="screen"><DebtsScreen /></div>
-      <div hidden={tab !== 'schedule'} className="screen"><ScheduleScreen /></div>
+      <div hidden={tab !== 'schedule'} className="screen"><ScheduleScreen active={tab === 'schedule'} /></div>
       <nav className="tabbar" aria-label="Разделы">
         <span className="side-brand">Долги и расписание</span>
         {TABS.map((t) => (
