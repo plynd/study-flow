@@ -1,5 +1,5 @@
 // Путь: src/screens/ScheduleScreen.tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import {
   addDays, building, dayBlocks, dayBounds, defaultWeek, emptyHidden, fmtDate, fmtTime, fmtWeek,
   groupByDate, lessonKey, weekStart, parallelOf, parseIcs, visibleLessons, weekdayName, weeksOf,
@@ -44,6 +44,8 @@ export default function ScheduleScreen({ active = true }: { active?: boolean }) 
   const [notice, setNotice] = useState<Notice | null>(null)
   const [week, setWeek] = useState<string | null>(null)
   const [day, setDay] = useState<string | null>(null)
+  // куда «едет» содержимое при смене недели или дня: 1 — вперёд, -1 — назад, 0 — пока не меняли (без анимации)
+  const [dir, setDir] = useState<0 | 1 | -1>(0)
   const [mode, setMode] = useState<Mode>('mine')
   const [teachers, setTeachers] = useTeachers()
   const [own, setOwn] = useState<Source>(() => read<Source>(K_OWN, { url: '' }))
@@ -213,7 +215,12 @@ export default function ScheduleScreen({ active = true }: { active?: boolean }) 
     : weekDays.includes(today) ? today
     : weekDays.find((d) => dates.has(d)) ?? weekDays[0] ?? null
 
-  const goWeek = (w: string) => { setWeek(w); setDay(null) }
+  const goWeek = (w: string) => { setDir(w > (current ?? '') ? 1 : -1); setWeek(w); setDay(null) }
+  const goDay = (d: string) => { setDir(d > (selected ?? '') ? 1 : -1); setWeek(weekStart(d)); setDay(d) }
+  const goToday = () => { setDir(today > (selected ?? '') ? 1 : -1); setWeek(null); setDay(null) }
+  const swap = (k: string, extra = '', base = '') => ({
+    key: k, className: [base, dir ? `swap ${extra}` : ''].filter(Boolean).join(' ') || undefined, style: { '--dir': dir } as CSSProperties,
+  })
 
   const tcard = (e: TeacherEntry, name: string) => (
     <li key={name + e.lesson.uid} className={`lesson teacher ${e.tag}`}>
@@ -295,33 +302,33 @@ export default function ScheduleScreen({ active = true }: { active?: boolean }) 
                   <span className="left-spacer" />
                   <span className="mid">
                     <button className="nav press" disabled={idx <= 0} onClick={() => goWeek(weeks[idx - 1])} aria-label="Предыдущая неделя"><IconChevronLeft /></button>
-                    <span className="title num">{fmtWeek(current)}</span>
+                    <span className="title-clip"><span {...swap(current, 'swap-sm')}><span className="title num">{fmtWeek(current)}</span></span></span>
                     <button className="nav press" disabled={idx >= weeks.length - 1} onClick={() => goWeek(weeks[idx + 1])} aria-label="Следующая неделя"><IconChevronRight size={22} /></button>
                   </span>
                   <button className={`today ${selected === today ? 'ghost' : ''}`} tabIndex={selected === today ? -1 : 0}
-                    onClick={() => { setWeek(null); setDay(null) }}>Сегодня</button>
+                    onClick={goToday}>Сегодня</button>
                 </div>
-                <div className="strip" role="tablist" aria-label="Дни недели">
+                <div className="strip-clip"><div {...swap(current, 'swap-md', 'strip')} role="tablist" aria-label="Дни недели">
                   {weekDays.map((d, i) => (
                     <button key={d} role="tab" aria-selected={d === selected}
                       className={`daychip press ${d === selected ? 'on' : ''} ${d === today ? 'today' : ''}`}
-                      onClick={() => setDay(d)} aria-label={`${weekdayName(d)} ${fmtDate(d)}`}>
+                      onClick={() => { setDir(d > (selected ?? '') ? 1 : -1); setDay(d) }} aria-label={`${weekdayName(d)} ${fmtDate(d)}`}>
                       <span className="dow">{DAYS[i]}</span>
                       <span className="dom">{+d.slice(8, 10)}</span>
                       <span className={`dot ${dates.has(d) ? '' : 'none'}`} />
                     </button>
                   ))}
-                </div>
+                </div></div>
               </>
             )}
           </div>
           <ScheduleAside visible={visible} teachers={teachers} active={active} selected={selected} weekDays={weekDays} now={now} today={today}
-            onPickDay={(d) => { setWeek(weekStart(d)); setDay(d) }} />
+            onPickDay={goDay} />
           </div>
 
           <div className="sched-day">
           {selected && (
-            <>
+            <div {...swap(selected)}>
               <div className="day-head">
                 <h2 className="day-title">{weekdayName(selected)}, {fmtDate(selected)}</h2>
                 {mode !== 'teachers' && (b || ls.length > 0) && (
@@ -358,7 +365,7 @@ export default function ScheduleScreen({ active = true }: { active?: boolean }) 
                   {r.hiddenRemote > 0 && <p className="footnote">Скрыто пар без аудитории: {r.hiddenRemote}</p>}
                 </div>
               ))}
-            </>
+            </div>
           )}
           </div>
         </div>

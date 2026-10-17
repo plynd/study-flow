@@ -1,5 +1,5 @@
 // Путь: src/App.tsx
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import DebtsScreen from './screens/DebtsScreen'
 import ScheduleScreen from './screens/ScheduleScreen'
 import NotesScreen from './screens/NotesScreen'
@@ -32,12 +32,16 @@ export default function App() {
       <div hidden={tab !== 'notes'} className="screen"><NotesScreen active={tab === 'notes'} /></div>
       <nav className="tabbar" aria-label="Разделы">
         <span className="side-brand">Долги и расписание</span>
-        {TABS.map((t) => (
-          <button key={t.id} className="tab press" aria-current={tab === t.id ? 'page' : undefined} onClick={() => go(t.id)}>
-            {t.icon}
-            <span>{t.label}</span>
-          </button>
-        ))}
+        {/* «бегунок» переезжает к выбранной вкладке, как в переключателе расписания */}
+        <div className="tabs" style={{ '--n': TABS.length, '--i': Math.max(0, TABS.findIndex((t) => t.id === tab)) } as CSSProperties}>
+          <span className="tab-thumb" aria-hidden="true" />
+          {TABS.map((t) => (
+            <button key={t.id} className="tab press" aria-current={tab === t.id ? 'page' : undefined} onClick={() => go(t.id)}>
+              {t.icon}
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </div>
       </nav>
     </>
   )
