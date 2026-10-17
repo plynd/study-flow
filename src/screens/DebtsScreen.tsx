@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import {
   debtProgress, debtStatus, makeWorks, totalProgress, type Debt, type DebtStatus,
 } from '../domain/debts'
-import { sampleDebts } from '../data/sample'
 import Picker from './Picker'
 import DataSheet from './DataSheet'
 import Sheet from '../ui/Sheet'
@@ -22,7 +21,7 @@ function load(): Debt[] {
     const raw = localStorage.getItem(KEY)
     if (raw) return JSON.parse(raw) as Debt[]
   } catch { /* без хранилища работаем из памяти */ }
-  return sampleDebts
+  return []
 }
 
 // Названия разделов — по смыслу, а не «Прочее»
