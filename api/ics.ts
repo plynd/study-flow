@@ -1,7 +1,7 @@
 // Путь: api/ics.ts
 // Серверная функция (Vercel): берёт .ics с сайта расписания и отдаёт приложению.
 // Только ссылки asu.ru/timetable/…?file=N.ics; редиректы не следуем; при 403/429 останавливаемся.
-import { validateIcsUrl } from '../src/domain/sources'
+import { validateIcsUrl } from '../src/domain/sources.js'
 
 const json = (body: unknown, status: number, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), {
@@ -9,7 +9,7 @@ const json = (body: unknown, status: number, headers: Record<string, string> = {
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers },
   })
 
-export async function GET(request: Request): Promise<Response> {
+async function handle(request: Request): Promise<Response> {
   const target = new URL(request.url).searchParams.get('url') ?? ''
   const v = validateIcsUrl(target)
   if (!v.ok) return json({ error: v.reason }, 400)
@@ -47,4 +47,11 @@ export async function GET(request: Request): Promise<Response> {
   return new Response(text, {
     headers: { 'content-type': 'text/calendar; charset=utf-8', 'cache-control': 'no-store' },
   })
+}
+
+/** Любой неожиданный сбой отдаём понятным JSON, а не пустой страницей ошибки */
+export async function GET(request: Request): Promise<Response> {
+  try { return await handle(request) } catch (e) {
+    return json({ error: `Сбой на сервере: ${(e as Error)?.message ?? String(e)}` }, 500)
+  }
 }

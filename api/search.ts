@@ -1,7 +1,7 @@
 // Путь: api/search.ts
 // Серверная функция (Vercel): поиск преподавателя или группы по названию — как форма поиска на сайте.
-import { parsePager, parseTotal, parseSearch, searchUrl, validatePage, validateQuery, type DirKind } from '../src/domain/directory'
-import { fetchTimetablePage } from '../src/server/site'
+import { parsePager, parseTotal, parseSearch, searchUrl, validatePage, validateQuery, type DirKind } from '../src/domain/directory.js'
+import { fetchTimetablePage } from '../src/server/site.js'
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), {
@@ -9,7 +9,7 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers },
   })
 
-export async function GET(request: Request): Promise<Response> {
+async function handle(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams
   const kind = params.get('in')
   if (kind !== 'lecturers' && kind !== 'students') return json({ error: 'Укажи, что искать.' }, 400)
@@ -36,4 +36,11 @@ export async function GET(request: Request): Promise<Response> {
   const text = page.html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300)
   const debug = `${page.trace}; ссылок: ${hrefs.length}; примеры: ${sample.join(' , ') || 'нет'}; текст: «${text}»`
   return json({ items, more: parsePager(page.html, kind as DirKind, ref?.n ?? 1), total: parseTotal(page.html), debug })
+}
+
+/** Любой неожиданный сбой отдаём понятным JSON, а не пустой страницей ошибки */
+export async function GET(request: Request): Promise<Response> {
+  try { return await handle(request) } catch (e) {
+    return json({ error: `Сбой на сервере: ${(e as Error)?.message ?? String(e)}` }, 500)
+  }
 }

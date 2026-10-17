@@ -1,8 +1,8 @@
 // Путь: api/directory.ts
 // Серверная функция (Vercel): список институтов / кафедр / преподавателей / групп.
 // Вызывается кликом пользователя в окне выбора; результат клиент кэширует на сутки.
-import { parseDirectory, validateDirPath } from '../src/domain/directory'
-import { fetchTimetablePage } from '../src/server/site'
+import { parseDirectory, validateDirPath } from '../src/domain/directory.js'
+import { fetchTimetablePage } from '../src/server/site.js'
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), {
@@ -10,7 +10,7 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers },
   })
 
-export async function GET(request: Request): Promise<Response> {
+async function handle(request: Request): Promise<Response> {
   const v = validateDirPath(new URL(request.url).searchParams.get('path') ?? '')
   if (!v.ok) return json({ error: v.reason }, 400)
 
@@ -30,4 +30,11 @@ export async function GET(request: Request): Promise<Response> {
     }, 502)
   }
   return json({ items })
+}
+
+/** Любой неожиданный сбой отдаём понятным JSON, а не пустой страницей ошибки */
+export async function GET(request: Request): Promise<Response> {
+  try { return await handle(request) } catch (e) {
+    return json({ error: `Сбой на сервере: ${(e as Error)?.message ?? String(e)}` }, 500)
+  }
 }
