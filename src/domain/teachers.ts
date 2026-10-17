@@ -96,3 +96,15 @@ export function classifyCalendar(name: string | null, lessons: Lesson[]): Calend
   if (lessons.length >= 3 && teachers.size === 1) return 'teacher'
   return 'unknown'
 }
+
+/** Добавить или обновить преподавателя: ищем по id, потом по ссылке, потом по названию */
+export function upsertTeacher(
+  ts: TeacherCal[], name: string, lessons: Lesson[], sourceUrl?: string, id?: string,
+  now = Date.now(), newId = () => Math.random().toString(36).slice(2, 9),
+): TeacherCal[] {
+  const old = ts.find((t) => (id && t.id === id) || (sourceUrl && t.sourceUrl === sourceUrl) || t.name === name)
+  const extra = sourceUrl ? { sourceUrl, updatedAt: now } : {}
+  return old
+    ? ts.map((t) => (t === old ? { ...t, lessons, ...extra } : t))
+    : [...ts, { id: newId(), name, lessons, ...extra }]
+}

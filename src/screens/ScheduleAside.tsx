@@ -1,9 +1,9 @@
 // Путь: src/screens/ScheduleAside.tsx
 // Боковая панель расписания (на ноутбуке и мониторе): ближайшая пара, «Сдать долги», загрузка недели.
 // Только показывает: вся арифметика — в domain/insights.ts.
+import { readDebts } from '../data/readDebts'
 import { useMemo } from 'react'
 import { debtMeetings, fmtDuration, nextLesson, weekLoad } from '../domain/insights'
-import type { Debt } from '../domain/debts'
 import { building, fmtDate, fmtTime, weekdayName, type Lesson } from '../domain/schedule'
 import type { TeacherCal } from '../domain/teachers'
 
@@ -19,14 +19,6 @@ interface Props {
   now: number
   today: string
   onPickDay: (date: string) => void
-}
-
-function readDebts(): Debt[] {
-  try {
-    const raw = localStorage.getItem('debts-v1')
-    if (raw) return JSON.parse(raw) as Debt[]
-  } catch { /* нет хранилища */ }
-  return []
 }
 
 const SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
