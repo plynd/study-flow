@@ -172,6 +172,6 @@ vite.config.ts    в разработке отдаёт /api/* теми же фу
 ## Telegram Mini App
 
 - В `index.html` подключён официальный `telegram-web-app.js`. В обычном браузере он ничего не меняет: `src/platform/telegram.ts` включается, только если у страницы есть `initData`.
-- Внутри Telegram: `ready()`, `expand()`, отключён свайп вниз (иначе листы закрывали бы приложение), цвета шапки и фона Telegram берутся из `--bg`.
+- Внутри Telegram: `ready()`, `expand()`, на телефоне `requestFullscreen()` (Bot API 8.0; отступы под кнопки Telegram — `html.tg` в `index.css`), отключён свайп вниз (иначе листы закрывали бы приложение), цвета шапки и фона Telegram берутся из `--bg`.
 - Кнопка «Назад» Telegram закрывает верхний открытый лист: стек в `src/platform/backStack.ts`, листы регистрируются сами.
 - Подключение: в @BotFather → `/newapp` (или `/setmenubutton`) → адрес сайта на Vercel.
