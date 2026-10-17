@@ -4,6 +4,9 @@ import { backDepth, onBackChange, runBack } from './backStack'
 
 interface TgWebApp {
   initData: string
+  platform?: string
+  isVersionAtLeast?(version: string): boolean
+  requestFullscreen?(): void
   ready(): void
   expand(): void
   disableVerticalSwipes?(): void
@@ -34,8 +37,12 @@ function paint(app: TgWebApp) {
 export function initTelegram() {
   const app = getTelegram()
   if (!app) return
+  document.documentElement.classList.add('tg')
   attempt(() => app.ready())
   attempt(() => app.expand())
+  // На телефоне открываем на весь экран, как «родные» приложения: шапку Telegram заменяют его кнопки поверх нашего фона.
+  // Отступы под них даёт html.tg в index.css. На компьютере полный экран не нужен.
+  if ((app.platform === 'ios' || app.platform === 'android') && app.isVersionAtLeast?.('8.0')) attempt(() => app.requestFullscreen?.())
   // Листы тянутся вниз пальцем; без этого Telegram принял бы такой жест за «свернуть приложение»
   attempt(() => app.disableVerticalSwipes?.())
 
