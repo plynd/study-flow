@@ -168,6 +168,13 @@ export default function DebtsScreen() {
               </div>
             </div>
 
+            <h3 className="section-title">Преподаватель</h3>
+            <div className="group">
+              <input className="input" placeholder="Фамилия, например Шукшин" aria-label="Преподаватель" value={open.teacher ?? ''}
+                onChange={(e) => patch(open.id, { teacher: e.target.value })} />
+            </div>
+            <p className="footnote">По фамилии в расписании найдётся, когда и где его застать.</p>
+
             <h3 className="section-title">Что нужно сделать</h3>
             <div className="group">
               <textarea className="input" placeholder="Требования преподавателя" value={open.requirements ?? ''}
