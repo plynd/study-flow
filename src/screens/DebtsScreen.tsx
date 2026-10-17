@@ -5,13 +5,14 @@ import {
 } from '../domain/debts'
 import { sampleDebts } from '../data/sample'
 import Picker from './Picker'
+import DataSheet from './DataSheet'
 import Sheet from '../ui/Sheet'
 import { addTeacherFromUrl } from '../data/addTeacher'
 import { useTeachers } from '../data/teachersStore'
 import { surnameKey } from '../domain/insights'
 import Toast from '../ui/Toast'
 import { makeNotice, type Notice } from '../ui/notice'
-import { IconCheck, IconChevronRight, IconMinus, IconPlus } from '../ui/icons'
+import { IconCheck, IconChevronRight, IconMinus, IconMore, IconPlus } from '../ui/icons'
 
 const KEY = 'debts-v1'
 const uid = () => Math.random().toString(36).slice(2, 9)
@@ -40,6 +41,7 @@ export default function DebtsScreen() {
   const [teachers] = useTeachers()
   const [finding, setFinding] = useState<{ query: string; key: number } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [dataOpen, setDataOpen] = useState(false)
 
   useEffect(() => {
     try { localStorage.setItem(KEY, JSON.stringify(debts)) } catch { /* ignore */ }
@@ -98,6 +100,7 @@ export default function DebtsScreen() {
       <header className="navbar">
         <h1 className="large-title">Долги</h1>
         <div className="nav-actions">
+          <button className="icon-btn press" aria-label="Резервная копия" onClick={() => setDataOpen(true)}><IconMore /></button>
           <button className="icon-btn press" aria-label="Добавить долг" onClick={() => setAdding(true)}><IconPlus /></button>
         </div>
       </header>
@@ -245,6 +248,8 @@ export default function DebtsScreen() {
       <Sheet open={!!finding} onClose={() => setFinding(null)} title="Выбор преподавателя">
         {finding && <Picker key={finding.key} kind="lecturers" initialQuery={finding.query} onPick={(_, url) => pickTeacher(url)} />}
       </Sheet>
+
+      <DataSheet open={dataOpen} onClose={() => setDataOpen(false)} />
 
       <Toast notice={notice} onClose={() => setNotice(null)} />
     </main>
