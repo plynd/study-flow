@@ -65,8 +65,56 @@ export function validateQuery(q: string): { ok: true; q: string } | { ok: false;
   return { ok: true, q: t }
 }
 
-export const searchUrl = (q: string, kind: DirKind) =>
-  `https://www.asu.ru/timetable/search/${kind}/?query=${encodeURIComponent(q)}`
+/** Страница результатов: имя параметра, которым сайт листает (узнаём из его же ссылок), и номер страницы */
+export interface PageRef { param: string; n: number }
+
+/** Имя параметра: только латиница, цифры и «_»; номер: 2–100. Всё остальное на сайт не уходит. */
+export function validatePage(param: string, n: number): PageRef | null {
+  return /^[A-Za-z][A-Za-z0-9_]{0,24}$/.test(param) && Number.isInteger(n) && n >= 2 && n <= 100 && param !== 'query' ? { param, n } : null
+}
+
+export const searchUrl = (q: string, kind: DirKind, page?: PageRef) =>
+  `https://www.asu.ru/timetable/search/${kind}/?query=${encodeURIComponent(q)}` + (page ? `&${page.param}=${page.n}` : '')
+
+/**
+ * Есть ли следующая страница результатов. Сайт листает ссылками на тот же поиск с лишним числовым параметром
+ * (например, ?query=…&PAGEN_1=2); берём самый частый такой параметр и ближайший номер после текущей.
+ * Если ссылок листания нет — null (результаты уместились на одной странице).
+ */
+export function parsePager(html: string, kind: DirKind, current = 1): PageRef | null {
+  const base = `https://www.asu.ru/timetable/search/${kind}/`
+  // у сайта листание лежит в блоке «pagination»; там ссылка может быть и без query, а вне блока — только с ним
+  const at = html.search(/class="[^"]*\bpagination\b[^"]*"/)
+  const zone = at >= 0 ? html.slice(at, at + 6000) : ''
+  const byParam = new Map<string, Set<number>>()
+  const scan = (chunk: string, needQuery: boolean) => {
+    for (const m of chunk.matchAll(/<a\b[^>]*?href\s*=\s*["']([^"']+)["']/gi)) {
+      let u: URL
+      try { u = new URL(m[1].replace(/&amp;/g, '&'), base) } catch { continue }
+      if (u.hostname !== 'www.asu.ru' || u.pathname !== `/timetable/search/${kind}/`) continue
+      if (needQuery && !u.searchParams.has('query')) continue
+      for (const [k, v] of u.searchParams) {
+        if (k === 'query' || !/^\d+$/.test(v)) continue
+        const n = Number(v)
+        if (!validatePage(k, n)) continue
+        byParam.set(k, (byParam.get(k) ?? new Set()).add(n))
+      }
+    }
+  }
+  scan(zone, false)
+  if (byParam.size === 0) scan(html, true)
+  let best: [string, Set<number>] | null = null
+  for (const e of byParam) if (!best || e[1].size > best[1].size) best = e
+  if (!best) return null
+  // страницы идут подряд: если среди ссылок есть номер больше текущего (хотя бы «последняя»), то есть и следующая
+  return [...best[1]].some((n) => n > current) ? validatePage(best[0], current + 1) : null
+}
+
+/** «Всего найдено N» / «всего записей: N» — сколько результатов у сайта в целом (null, если не нашли) */
+export function parseTotal(html: string): number | null {
+  const m = /pagination-label-total[^>]*>\s*(\d+)/i.exec(html) ?? /search_statistics-info-item-value[^>]*>\s*(\d+)\s*</i.exec(html.replace(/[\s\S]*?Всего найдено\s*<\/span>/i, ''))
+  return m ? Number(m[1]) : null
+}
 
 const LEAF_RE: Record<DirKind, RegExp> = {
   lecturers: /^\/timetable\/lecturers\/\d+\/\d+\/\d+\/$/,

@@ -1,6 +1,6 @@
 // Путь: api/search.ts
 // Серверная функция (Vercel): поиск преподавателя или группы по названию — как форма поиска на сайте.
-import { parseSearch, searchUrl, validateQuery, type DirKind } from '../src/domain/directory'
+import { parsePager, parseTotal, parseSearch, searchUrl, validatePage, validateQuery, type DirKind } from '../src/domain/directory'
 import { fetchTimetablePage } from '../src/server/site'
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -16,7 +16,12 @@ export async function GET(request: Request): Promise<Response> {
   const v = validateQuery(params.get('q') ?? '')
   if (!v.ok) return json({ error: v.reason }, 400)
 
-  const page = await fetchTimetablePage(searchUrl(v.q, kind as DirKind))
+  // следующая страница: имя параметра берём из ссылок самого сайта (ответ первой страницы), проверяем и передаём дальше
+  const pp = params.get('pp'), pn = params.get('pn')
+  const ref = pp && pn ? validatePage(pp, Number(pn)) : null
+  if (pp && pn && !ref) return json({ error: 'Недопустимый номер страницы.' }, 400)
+
+  const page = await fetchTimetablePage(searchUrl(v.q, kind as DirKind, ref ?? undefined))
   if (!page.ok) return json({ error: page.error }, page.status, page.stop ? { 'Retry-After': '1800' } : {})
 
   // только при разработке: посмотреть, что отдал сайт (?raw=1)
@@ -30,5 +35,5 @@ export async function GET(request: Request): Promise<Response> {
   // начало текста страницы без разметки — если страница короткая, это обычно сообщение сайта
   const text = page.html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300)
   const debug = `${page.trace}; ссылок: ${hrefs.length}; примеры: ${sample.join(' , ') || 'нет'}; текст: «${text}»`
-  return json({ items, debug })
+  return json({ items, more: parsePager(page.html, kind as DirKind, ref?.n ?? 1), total: parseTotal(page.html), debug })
 }

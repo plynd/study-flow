@@ -1,7 +1,7 @@
 // Путь: src/screens/Picker.tsx
 import { useEffect, useRef, useState } from 'react'
 import { IconChevronRight } from '../ui/icons'
-import { LEAF_DEPTH, depthOf, icsUrlFor, rootPath, type DirItem, type DirKind, type SearchItem } from '../domain/directory'
+import { LEAF_DEPTH, depthOf, icsUrlFor, rootPath, type DirItem, type DirKind, type PageRef, type SearchItem } from '../domain/directory'
 
 const K_CACHE = 'dir-cache-v1'
 const TTL = 24 * 3600 * 1000 // списки меняются редко — не дёргаем сайт чаще раза в сутки
@@ -34,18 +34,20 @@ function loadDir(path: string): Promise<DirItem[]> {
   return p
 }
 
-// Поиск по сайту: не короче 3 символов, пауза после набора, одинаковые запросы не повторяем
-interface SearchResult { items: SearchItem[]; debug?: string }
+// Поиск по сайту: не короче 3 символов, пауза после набора, одинаковые запросы не повторяем.
+// Следующую страницу результатов грузим только по кнопке «Показать ещё».
+interface SearchResult { items: SearchItem[]; more: PageRef | null; total: number | null; debug?: string }
 const searchCache = new Map<string, SearchResult>()
-async function searchSite(q: string, kind: DirKind): Promise<SearchResult> {
-  const key = kind + '|' + q.toLowerCase()
+async function searchSite(q: string, kind: DirKind, page?: PageRef): Promise<SearchResult> {
+  const key = `${kind}|${q.toLowerCase()}|${page ? page.param + page.n : ''}`
   const hit = searchCache.get(key)
   if (hit) return hit
-  const r = await fetch(`/api/search?in=${kind}&q=${encodeURIComponent(q)}`).catch(() => null)
+  const extra = page ? `&pp=${encodeURIComponent(page.param)}&pn=${page.n}` : ''
+  const r = await fetch(`/api/search?in=${kind}&q=${encodeURIComponent(q)}${extra}`).catch(() => null)
   if (!r) throw new Error('Нет связи с сервером приложения.')
   const body = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(body.error ?? `Ошибка ${r.status}.`)
-  const res: SearchResult = { items: body.items, debug: body.debug }
+  const res: SearchResult = { items: body.items, more: body.more ?? null, total: body.total ?? null, debug: body.debug }
   searchCache.set(key, res)
   return res
 }
@@ -70,18 +72,21 @@ export default function Picker({ kind, onPick, initialQuery = '' }: Props) {
   const lastPath = useRef<string | null>(null)
   const cur = stack[stack.length - 1]
   const [hits, setHits] = useState<SearchItem[]>([])
+  const [more, setMore] = useState<PageRef | null>(null)
+  const [total, setTotal] = useState<number | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [searching, setSearching] = useState(false)
   const [searchErr, setSearchErr] = useState('')
   const [debug, setDebug] = useState('')
   const ready = q.trim().length >= 3
 
   useEffect(() => {
-    if (!ready) { setHits([]); setSearchErr(''); setSearching(false); return }
+    if (!ready) { setHits([]); setMore(null); setTotal(null); setSearchErr(''); setSearching(false); return }
     let dead = false
     setSearching(true); setSearchErr('')
     const t = setTimeout(() => {
       searchSite(q.trim(), kind)
-        .then((r) => { if (!dead) { setHits(r.items); setDebug(r.items.length ? '' : (r.debug ?? '')) } })
+        .then((r) => { if (!dead) { setHits(r.items); setMore(r.more); setTotal(r.total); setDebug(r.items.length ? '' : (r.debug ?? '')) } })
         .catch((e: Error) => { if (!dead) { setHits([]); setSearchErr(e.message) } })
         .finally(() => { if (!dead) setSearching(false) })
     }, 800)
@@ -100,6 +105,20 @@ export default function Picker({ kind, onPick, initialQuery = '' }: Props) {
       .finally(() => { if (!dead) setLoading(false) })
     return () => { dead = true }
   }, [cur.path])
+
+  async function showMore() {
+    if (!more || loadingMore) return
+    setLoadingMore(true); setSearchErr('')
+    try {
+      const r = await searchSite(q.trim(), kind, more)
+      setHits((h) => {
+        const seen = new Set(h.map((x) => x.path))
+        return [...h, ...r.items.filter((x) => !seen.has(x.path))]
+      })
+      setMore(r.more)
+    } catch (e) { setSearchErr((e as Error).message) }
+    setLoadingMore(false)
+  }
 
   const shown = items.filter((i) => i.name.toLowerCase().includes(q.trim().toLowerCase()))
 
@@ -141,6 +160,16 @@ export default function Picker({ kind, onPick, initialQuery = '' }: Props) {
                 </li>
               ))}
             </ul>
+          )}
+          {!more && !searching && total !== null && total > hits.length && hits.length > 0 && (
+            <p className="status-line">Показано {hits.length} из {total}. Допиши запрос, чтобы найти остальных.</p>
+          )}
+          {more && !searching && (
+            <div className="group">
+              <button className="row accent" disabled={loadingMore} onClick={showMore}>
+                <span className="row-title">{loadingMore ? 'Загружаю…' : 'Показать ещё'}</span>
+              </button>
+            </div>
           )}
           {!searching && !searchErr && hits.length === 0 && (
             <>
