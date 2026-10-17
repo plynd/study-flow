@@ -63,9 +63,12 @@ export default function ScheduleAside({ visible, teachers, active, selected, wee
         )}
       </section>
 
-      {meetings.length > 0 && (
+      {(
         <section className="side-card">
           <h3 className="side-title">Сдать долги</h3>
+          {meetings.length === 0 && (
+            <p className="caption">Здесь появится, когда и где застать преподавателя. Для этого у незакрытого долга укажи преподавателя и добавь его расписание в «Источниках».</p>
+          )}
           <ul className="meets">
             {meetings.map(({ debt, hasCalendar, next: n }) => (
               <li key={debt.id}>
