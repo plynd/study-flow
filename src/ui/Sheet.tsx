@@ -1,5 +1,6 @@
 // Путь: src/ui/Sheet.tsx
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import { pushBack } from '../platform/backStack'
 import { SPRING_FLICK, SPRING_SHEET, animateSpring, project, rubberband } from './spring'
 
 interface Props {
@@ -98,6 +99,14 @@ export default function Sheet({ open, onClose, title, leading, trailing, childre
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  // Кнопка «Назад» Telegram закрывает верхний открытый лист
+  const closeRef = useRef(onClose)
+  useEffect(() => { closeRef.current = onClose })
+  useEffect(() => {
+    if (!open) return
+    return pushBack(() => closeRef.current())
+  }, [open])
 
   useEffect(() => () => stop.current?.(), [])
 
