@@ -1,29 +1,56 @@
 // Путь: src/ui/Toast.tsx
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { Notice } from './notice'
+import { IconCheck } from './icons'
+
+const OUT_MS = 280
+
+/** Сколько висит сообщение: длинный текст читается дольше, с «Отменить» — тоже, чтобы успеть нажать */
+function lifetime(n: Notice): number {
+  const base = n.text.length > 90 ? 9000 : 5500
+  return n.tone === 'error' ? Math.max(base, 8000) : n.action ? Math.max(base, 7000) : base
+}
 
 /**
- * Короткое сообщение над нижней панелью: что произошло и, если можно, «Отменить».
- * Обычное исчезает само; ошибка остаётся, пока её не закроют.
+ * Короткое сообщение по центру экрана над нижней панелью: что произошло и, если можно, «Отменить».
+ * Исчезает само (ошибка — позже других); можно убрать и касанием.
  */
 export default function Toast({ notice, onClose }: { notice: Notice | null; onClose: () => void }) {
-  const id = notice?.id
-  const long = (notice?.text.length ?? 0) > 90
-  const isError = notice?.tone === 'error'
-  useEffect(() => {
-    if (id === undefined || isError) return
-    const t = setTimeout(onClose, long ? 9000 : 5500)
-    return () => clearTimeout(t)
-  }, [id, isError, long, onClose])
+  // Показываем последнее сообщение ещё чуть-чуть после закрытия, чтобы успела сыграть анимация ухода
+  const [prev, setPrev] = useState<Notice | null>(notice)
+  const [shown, setShown] = useState<Notice | null>(notice)
+  const [out, setOut] = useState(false)
+  if (notice !== prev) {
+    setPrev(notice)
+    if (notice) { setShown(notice); setOut(false) } else setOut(true)
+  }
 
-  if (!notice) return null
+  useEffect(() => {
+    if (!out) return
+    const t = setTimeout(() => setShown(null), OUT_MS)
+    return () => clearTimeout(t)
+  }, [out])
+
+  const id = notice?.id
+  useEffect(() => {
+    if (!notice) return
+    const t = setTimeout(onClose, lifetime(notice))
+    return () => clearTimeout(t)
+    // таймер привязан к самому сообщению: новое сообщение запускает отсчёт заново
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, onClose])
+
+  if (!shown) return null
+  const isError = shown.tone === 'error'
   return (
-    <div className={`toast ${notice.tone}`} key={notice.id} role={isError ? 'alert' : 'status'}>
-      <span className="toast-text">{notice.text}</span>
-      {notice.action && (
-        <button className="toast-action" onClick={() => { notice.action!.run(); onClose() }}>{notice.action.label}</button>
-      )}
-      <button className="toast-close" aria-label="Закрыть" onClick={onClose}>✕</button>
+    <div className="toast-wrap">
+      <div className={`toast ${shown.tone}${out ? ' out' : ''}`} key={shown.id} role={isError ? 'alert' : 'status'} onClick={onClose}>
+        <span className="toast-icon" aria-hidden="true">{isError ? '!' : <IconCheck size={14} />}</span>
+        <span className="toast-text">{shown.text}</span>
+        {shown.action && (
+          <button className="toast-action press" onClick={(e) => { e.stopPropagation(); shown.action!.run(); onClose() }}>{shown.action.label}</button>
+        )}
+      </div>
     </div>
   )
 }

@@ -368,17 +368,25 @@ select.input.boxed { appearance: none; background-image: none; }
 .tab { position: relative; z-index: 1; flex: 1; border-radius: 99px; display: grid; justify-items: center; align-content: center; gap: .1rem; color: var(--text-2); font-size: .6875rem; font-weight: 500; letter-spacing: .02em; transition: color .25s, transform .45s var(--ease); }
 .tab[aria-current=page] { color: var(--accent-text); }
 
-/* ——— Уведомление ——— */
-.toast {
-  position: fixed; left: 50%; bottom: calc(var(--dock-h) + .35rem); z-index: 60;
-  width: min(calc(100% - 2rem), 32rem); transform: translateX(-50%);
-  display: flex; align-items: center; gap: .6rem; padding: .7rem .6rem .7rem 1.2rem; border-radius: 99px;
-  animation: toast-in .5s var(--ease);
+/* ——— Уведомление: по центру экрана, на любом размере окна ——— */
+.toast-wrap {
+  position: fixed; inset-inline: 0; bottom: calc(var(--dock-h) + .5rem); z-index: 60;
+  display: flex; justify-content: center; padding-inline: max(1rem, var(--sal)) max(1rem, var(--sar)); pointer-events: none;
 }
-.toast-text { flex: 1; font-size: .9375rem; line-height: 1.3; font-weight: 500; }
+.toast {
+  pointer-events: auto; max-width: min(100%, 30rem);
+  display: flex; align-items: center; gap: .7rem; padding: .6rem .7rem .6rem .75rem; border-radius: 1.6rem;
+  animation: toast-in .5s var(--ease) both; cursor: default;
+}
+.toast.out { animation: toast-out .28s ease-in both; pointer-events: none; }
+.toast-icon {
+  flex: none; width: 1.65rem; height: 1.65rem; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: #fff; font-size: .875rem; font-weight: 700; line-height: 1;
+}
+.toast.error .toast-icon { background: var(--danger); }
+.toast-text { flex: 1; font-size: .9375rem; line-height: 1.3; font-weight: 500; letter-spacing: -.011em; padding-right: .25rem; }
 .toast.error .toast-text { color: var(--danger-text); }
-.toast-action { color: var(--accent-text); font-weight: 600; font-size: .9375rem; padding: .4rem .7rem; border-radius: 99px; background: var(--glass-hi); }
-.toast-close { color: var(--text-2); width: 1.9rem; height: 1.9rem; border-radius: 50%; font-size: .8125rem; }
+.toast-action { flex: none; color: var(--accent-text); font-weight: 600; font-size: .9375rem; padding: .4rem .85rem; border-radius: 99px; background: var(--glass-hi); }
 
 /* ——— Сводка расписания (боковая панель) ——— */
 .side-card { background: var(--card); -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%); box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 255, 255, .5); border-radius: var(--r-card); padding: .85rem 1.1rem; display: grid; gap: .5rem; }
@@ -408,7 +416,8 @@ button.meet:active { background: var(--fill); }
 
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-@keyframes toast-in { from { opacity: 0; transform: translate(-50%, .9rem) scale(.94); filter: blur(8px); } to { opacity: 1; transform: translate(-50%, 0) scale(1); filter: blur(0); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(.9rem) scale(.94); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(.6rem) scale(.96); filter: blur(6px); } }
 
 /* ——— Курсор мыши: подсветка при наведении (на сенсорных экранах не нужна) ——— */
 @media (hover: hover) {
@@ -447,7 +456,7 @@ button.meet:active { background: var(--fill); }
   .tab { flex: none; height: 3rem; display: flex; align-items: center; gap: .8rem; justify-items: unset; padding: 0 1rem; font-size: 1rem; font-weight: 500; letter-spacing: -.011em; }
   .tab[aria-current=page] { font-weight: 600; }
 
-  .toast { left: calc(50% + var(--side-w) / 2 + .5rem); bottom: 1.5rem; }
+  .toast-wrap { bottom: 1.75rem; }
 
   /* Долги: сводка — широкая полоса сверху, разделы — в две колонки (без пустого места слева) */
   .debts-side { padding-top: .5rem; }
@@ -489,7 +498,8 @@ button.meet:active { background: var(--fill); }
   .press:active:not(:disabled), .lesson-main:active, .chk:active { transform: none; }
   .icon-btn.spin svg { animation: none; opacity: .5; }
   .sheet, .sheet-scrim { transition: opacity .2s ease !important; }
-  .toast { animation: fade .2s ease !important; transform: translateX(-50%); }
+  .toast, .toast.out { animation: fade .2s ease !important; }
+  .toast.out { animation-direction: reverse !important; }
   .screen { animation: fade .2s ease !important; }
 }
 @media (prefers-reduced-transparency: reduce) {
@@ -513,5 +523,6 @@ button.meet:active { background: var(--fill); }
 .note-body { min-height: 38dvh; resize: none; }
 select.input { appearance: none; -webkit-appearance: none; }
 @media (min-width: 960px) {
-  .notes-wrap { max-width: 46rem; }
+  /* Список не растягиваем на всю ширину, а пустое состояние центрируем так же, как на других вкладках */
+  .notes-wrap > .search-field, .notes-wrap > .notes-list, .notes-wrap > .status-line { width: 100%; max-width: 46rem; }
 }
