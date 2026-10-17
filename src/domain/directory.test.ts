@@ -1,8 +1,11 @@
 // Путь: src/domain/directory.test.ts
 import { describe, expect, it } from 'vitest'
-import { depthOf, icsUrlFor, isLeaf, parseDirectory, parseSearch, searchUrl, validateDirPath, validateQuery } from './directory'
+import { depthOf, icsUrlFor, isLeaf, parsePager, parseTotal, parseDirectory, parseSearch, searchUrl, validateDirPath, validatePage, validateQuery } from './directory'
 import links from './__fixtures__/lecturers-links.html?raw'
 import searchResult from './__fixtures__/search-result.html?raw'
+import realLecturers from './__fixtures__/search-lecturers-4.html?raw'
+import realMany from './__fixtures__/search-students-many.html?raw'
+import realStudents from './__fixtures__/search-students-4.html?raw'
 
 describe('parseDirectory', () => {
   const base = '/timetable/lecturers/17/1109745016/'
@@ -94,5 +97,69 @@ describe('поиск', () => {
     const html = '<a href="/timetable/students/17/2129441703/">2.409-1</a>'
     expect(parseSearch(html, 'students')).toHaveLength(1)
     expect(parseSearch(html, 'lecturers')).toHaveLength(0)
+  })
+})
+
+describe('листание результатов поиска', () => {
+  const link = (qs: string) => `<a href="/timetable/search/lecturers/?query=Иван&amp;${qs}">x</a>`
+  const html = `<ul class="pager">${link('PAGEN_1=1')}${link('PAGEN_1=2')}${link('PAGEN_1=3')}</ul><a href="/other/?PAGEN_1=9">чужая</a>`
+
+  it('находит следующую страницу и имя параметра по ссылкам сайта', () => {
+    expect(parsePager(html, 'lecturers')).toEqual({ param: 'PAGEN_1', n: 2 })
+    expect(parsePager(html, 'lecturers', 2)).toEqual({ param: 'PAGEN_1', n: 3 })
+  })
+  it('на последней странице и без листания — null', () => {
+    expect(parsePager(html, 'lecturers', 3)).toBeNull()
+    expect(parsePager('<a href="/timetable/search/lecturers/?query=Иван">все</a>', 'lecturers')).toBeNull()
+  })
+  it('чужие ссылки и другой раздел не считаются', () => {
+    expect(parsePager('<a href="/other/?query=a&PAGEN_1=2">x</a>', 'lecturers')).toBeNull()
+    expect(parsePager(link('PAGEN_1=2'), 'students')).toBeNull()
+  })
+  it('адрес с номером страницы; странные параметры отбрасываются', () => {
+    expect(searchUrl('Иван', 'lecturers', { param: 'PAGEN_1', n: 2 })).toBe('https://www.asu.ru/timetable/search/lecturers/?query=%D0%98%D0%B2%D0%B0%D0%BD&PAGEN_1=2')
+    expect(validatePage('PAGEN_1', 2)).toEqual({ param: 'PAGEN_1', n: 2 })
+    for (const [k, n] of [['query', 2], ['a&b', 2], ['1abc', 2], ['p', 1], ['p', 101], ['p', 2.5]] as const) expect(validatePage(k, n)).toBeNull()
+  })
+})
+
+describe('настоящие страницы поиска asu.ru', () => {
+  it('преподаватели: имя, кафедра и институт в подписи', () => {
+    const r = parseSearch(realLecturers, 'lecturers')
+    expect(r).toHaveLength(4)
+    expect(r[0]).toEqual({
+      name: 'Иванов А.В. (доц.)', path: '/timetable/lecturers/20/54/630/',
+      hint: 'Конституционного и международного права, Юридический (ЮИ)',
+    })
+  })
+  it('группы: в подписи институт, разные формы обучения не смешиваются', () => {
+    const r = parseSearch(realStudents, 'students')
+    expect(r.map((x) => x.name)).toEqual(['2.409-1', '2.409з', '2.409зи', '2.409и'])
+    expect(r[0]).toEqual({ name: '2.409-1', path: '/timetable/students/17/2129441703/', hint: 'МИЭМИС (ЭФ)' })
+  })
+  it('«Всего найдено» читается, листания на странице с 4 результатами нет', () => {
+    expect(parseTotal(realLecturers)).toBe(4)
+    expect(parseTotal(realStudents)).toBe(4)
+    expect(parsePager(realLecturers, 'lecturers')).toBeNull()
+    expect(parseTotal('<p>ничего</p>')).toBeNull()
+  })
+  it('листание внутри блока pagination находится и без query в ссылке', () => {
+    const html = '<div class="l-box pagination"><a href="?PAGEN_1=2">2</a><a href="?PAGEN_1=3">3</a></div>'
+    expect(parsePager(html, 'lecturers')).toEqual({ param: 'PAGEN_1', n: 2 })
+  })
+})
+
+describe('настоящая страница с листанием (569 групп, по 20 на странице)', () => {
+  it('20 результатов, всего 569 — по категории «групп», а не 744 по всему поиску', () => {
+    expect(parseSearch(realMany, 'students')).toHaveLength(20)
+    expect(parseTotal(realMany)).toBe(569)
+  })
+  it('сайт листает параметром page: с первой страницы идём на вторую, со второй — на третью', () => {
+    expect(parsePager(realMany, 'students')).toEqual({ param: 'page', n: 2 })
+    expect(parsePager(realMany, 'students', 2)).toEqual({ param: 'page', n: 3 })
+  })
+  it('ссылка на последнюю страницу («29») не перескакивает через промежуточные', () => {
+    expect(parsePager(realMany, 'students', 5)).toEqual({ param: 'page', n: 6 })
+    expect(parsePager(realMany, 'students', 29)).toBeNull()
   })
 })

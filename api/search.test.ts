@@ -32,4 +32,19 @@ describe('api/search', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('no', { status: 429 })))
     expect((await call('in=lecturers&q=abcd')).status).toBe(429)
   })
+  it('следующая страница: номер уходит на сайт, а в ответе — есть ли ещё', async () => {
+    const pager = `<a href="/timetable/search/lecturers/?query=abcd&PAGEN_1=2">2</a><a href="/timetable/search/lecturers/?query=abcd&PAGEN_1=3">3</a>`
+    const f = vi.fn().mockResolvedValueOnce(new Response(shell)).mockResolvedValueOnce(new Response(result + pager))
+    vi.stubGlobal('fetch', f)
+    const body = await (await call('in=lecturers&q=abcd&pp=PAGEN_1&pn=2')).json()
+    expect(f.mock.calls[0][0]).toBe('https://www.asu.ru/timetable/search/lecturers/?query=abcd&PAGEN_1=2')
+    expect(body.more).toEqual({ param: 'PAGEN_1', n: 3 })
+  })
+  it('странный номер страницы на сайт не уходит', async () => {
+    const f = vi.fn(); vi.stubGlobal('fetch', f)
+    for (const qs of ['pp=a%26b&pn=2', 'pp=PAGEN_1&pn=1', 'pp=query&pn=2', 'pp=PAGEN_1&pn=abc']) {
+      expect((await call('in=lecturers&q=abcd&' + qs)).status).toBe(400)
+    }
+    expect(f).not.toHaveBeenCalled()
+  })
 })
