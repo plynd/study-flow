@@ -13,11 +13,12 @@ import Toast from '../ui/Toast'
 import { makeNotice, type Notice } from '../ui/notice'
 import { IconChevronLeft, IconChevronRight, IconMore, IconRefresh, IconTune } from '../ui/icons'
 import { PAUSE_MS, agoText, canRefresh, isLecturerUrl, minutesLeft, validateIcsUrl } from '../domain/sources'
-import { classifyCalendar, icsName, matchesFor, teacherDay, type Tag, type TeacherCal, type TeacherEntry } from '../domain/teachers'
+import { classifyCalendar, icsName, matchesFor, teacherDay, upsertTeacher, type Tag, type TeacherCal, type TeacherEntry } from '../domain/teachers'
+import { fetchIcs } from '../data/fetchIcs'
+import { useTeachers } from '../data/teachersStore'
 
 const K_LESSONS = 'schedule-lessons-v1'
 const K_HIDDEN = 'schedule-hidden-v1'
-const K_TEACHERS = 'schedule-teachers-v1'
 const K_SHOW = 'schedule-show-matches-v1'
 const K_OWN = 'schedule-own-source-v1'
 
@@ -44,7 +45,7 @@ export default function ScheduleScreen({ active = true }: { active?: boolean }) 
   const [week, setWeek] = useState<string | null>(null)
   const [day, setDay] = useState<string | null>(null)
   const [mode, setMode] = useState<Mode>('mine')
-  const [teachers, setTeachers] = useState<TeacherCal[]>(() => read<TeacherCal[]>(K_TEACHERS, []))
+  const [teachers, setTeachers] = useTeachers()
   const [own, setOwn] = useState<Source>(() => read<Source>(K_OWN, { url: '' }))
   const [teacherUrl, setTeacherUrl] = useState('')
   const [busy, setBusy] = useState(false)
@@ -62,9 +63,6 @@ export default function ScheduleScreen({ active = true }: { active?: boolean }) 
   }, [hidden])
 
   useEffect(() => {
-    try { localStorage.setItem(K_TEACHERS, JSON.stringify(teachers)) } catch { /* ignore */ }
-  }, [teachers])
-  useEffect(() => {
     try { localStorage.setItem(K_SHOW, JSON.stringify(showMatches)) } catch { /* ignore */ }
   }, [showMatches])
 
@@ -76,33 +74,13 @@ export default function ScheduleScreen({ active = true }: { active?: boolean }) 
     return () => clearInterval(id)
   }, [])
 
-  /** Один запрос к нашему серверу; stop=true — сайт просит остановиться */
-  async function fetchIcs(url: string): Promise<{ text: string } | { error: string; stop: boolean }> {
-    try {
-      const r = await fetch('/api/ics?url=' + encodeURIComponent(url))
-      if (r.ok) return { text: await r.text() }
-      let msg = `Ошибка ${r.status}.`
-      try { msg = (await r.json()).error ?? msg } catch { /* не json */ }
-      return { error: msg, stop: r.status === 429 }
-    } catch {
-      return { error: 'Нет связи с сервером приложения (на телефоне — проверь интернет).', stop: true }
-    }
-  }
-
   const patchTeacher = (id: string, p: Partial<TeacherCal>) =>
     setTeachers((ts) => ts.map((t) => (t.id === id ? { ...t, ...p } : t)))
 
   /** Добавить или обновить преподавателя: ищем по id, потом по ссылке, потом по названию */
   function saveTeacher(name: string, lessons: Lesson[], sourceUrl?: string, id?: string) {
-    setTeachers((ts) => {
-      const old = ts.find((t) => (id && t.id === id) || (sourceUrl && t.sourceUrl === sourceUrl) || t.name === name)
-      const extra = sourceUrl ? { sourceUrl, updatedAt: Date.now() } : {}
-      return old
-        ? ts.map((t) => (t === old ? { ...t, lessons, ...extra } : t))
-        : [...ts, { id: Math.random().toString(36).slice(2, 9), name, lessons, ...extra }]
-    })
+    setTeachers((ts) => upsertTeacher(ts, name, lessons, sourceUrl, id))
   }
-
 
   /**
    * Единая точка входа для любого расписания (файл или ссылка).

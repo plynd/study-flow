@@ -1,5 +1,5 @@
 // Путь: src/screens/Picker.tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { IconChevronRight } from '../ui/icons'
 import { LEAF_DEPTH, depthOf, icsUrlFor, rootPath, type DirItem, type DirKind, type SearchItem } from '../domain/directory'
 
@@ -53,10 +53,12 @@ async function searchSite(q: string, kind: DirKind): Promise<SearchResult> {
 interface Props {
   kind: DirKind
   onPick: (item: DirItem, icsUrl: string) => void
+  /** что подставить в поиск сразу (например, фамилия из долга) */
+  initialQuery?: string
 }
 
 /** Содержимое листа выбора: поиск сверху, ниже — результаты или список по уровням */
-export default function Picker({ kind, onPick }: Props) {
+export default function Picker({ kind, onPick, initialQuery = '' }: Props) {
   // стек шагов: [корень, институт, кафедра…]
   const [stack, setStack] = useState<{ path: string; title: string }[]>([
     { path: rootPath(kind), title: kind === 'lecturers' ? 'Институты' : 'Институты и факультеты' },
@@ -64,7 +66,8 @@ export default function Picker({ kind, onPick }: Props) {
   const [items, setItems] = useState<DirItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [q, setQ] = useState('')
+  const [q, setQ] = useState(initialQuery)
+  const lastPath = useRef<string | null>(null)
   const cur = stack[stack.length - 1]
   const [hits, setHits] = useState<SearchItem[]>([])
   const [searching, setSearching] = useState(false)
@@ -87,7 +90,10 @@ export default function Picker({ kind, onPick }: Props) {
 
   useEffect(() => {
     let dead = false
-    setQ(''); setError(''); setItems([]); setLoading(true)
+    // фильтр сбрасываем только при переходе вглубь, а не при первом показе (там может стоять подставленная фамилия)
+    if (lastPath.current !== null && lastPath.current !== cur.path) setQ('')
+    lastPath.current = cur.path
+    setError(''); setItems([]); setLoading(true)
     loadDir(cur.path)
       .then((it) => { if (!dead) setItems(it) })
       .catch((e: Error) => { if (!dead) setError(e.message) })
