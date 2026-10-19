@@ -3,6 +3,8 @@ import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import DebtsScreen from './screens/DebtsScreen'
 import ScheduleScreen from './screens/ScheduleScreen'
 import NotesScreen from './screens/NotesScreen'
+import DataSheet from './screens/DataSheet'
+import { closeData, useDataOpen } from './ui/dataSheetStore'
 import { IconCalendar, IconDebts, IconNotes } from './ui/icons'
 import './index.css'
 
@@ -15,6 +17,7 @@ const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('debts')
+  const dataOpen = useDataOpen()
   const scrolls = useRef<Record<Tab, number>>({ debts: 0, schedule: 0, notes: 0 })
 
   // Экраны остаются в памяти (скрытые), чтобы не терять неделю, день и открытые настройки
@@ -30,6 +33,7 @@ export default function App() {
       <div hidden={tab !== 'debts'} className="screen"><DebtsScreen /></div>
       <div hidden={tab !== 'schedule'} className="screen"><ScheduleScreen active={tab === 'schedule'} /></div>
       <div hidden={tab !== 'notes'} className="screen"><NotesScreen active={tab === 'notes'} /></div>
+      <DataSheet open={dataOpen} onClose={closeData} />
       <nav className="tabbar" aria-label="Разделы">
         <span className="side-brand">Долги и расписание</span>
         {/* «бегунок» переезжает к выбранной вкладке, как в переключателе расписания */}

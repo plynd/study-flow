@@ -4,6 +4,7 @@ import { filterNotes, fmtNoteDate, isEmptyNote, noteTitle, notePreview, sortNote
 import { readDebts } from '../data/readDebts'
 import Sheet from '../ui/Sheet'
 import Toast from '../ui/Toast'
+import DataButton from '../ui/DataButton'
 import { makeNotice, type Notice } from '../ui/notice'
 import { IconPin, IconPlus } from '../ui/icons'
 
@@ -70,6 +71,7 @@ export default function NotesScreen({ active = true }: { active?: boolean }) {
       <header className="navbar">
         <h1 className="large-title">Заметки</h1>
         <div className="nav-actions">
+          <DataButton />
           <button className="icon-btn press" aria-label="Новая заметка" onClick={create}><IconPlus /></button>
         </div>
       </header>
