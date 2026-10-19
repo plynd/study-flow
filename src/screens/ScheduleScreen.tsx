@@ -10,6 +10,7 @@ import ScheduleAside from './ScheduleAside'
 import Sheet from '../ui/Sheet'
 import Segmented from '../ui/Segmented'
 import Toast from '../ui/Toast'
+import DataButton from '../ui/DataButton'
 import { makeNotice, type Notice } from '../ui/notice'
 import { IconChevronLeft, IconChevronRight, IconMore, IconRefresh, IconTune } from '../ui/icons'
 import { PAUSE_MS, agoText, canRefresh, isLecturerUrl, minutesLeft, validateIcsUrl } from '../domain/sources'
@@ -277,6 +278,7 @@ export default function ScheduleScreen({ active = true }: { active?: boolean }) 
       <header className="navbar">
         <h1 className="large-title">Расписание</h1>
         <div className="nav-actions">
+          <DataButton />
           <button className={`icon-btn press ${busy ? 'spin' : ''}`} aria-label="Обновить расписание" disabled={busy} onClick={refreshAll}><IconRefresh /></button>
           <button className="icon-btn press" aria-label="Источники и настройки" onClick={() => setSettings(true)}><IconTune /></button>
         </div>
