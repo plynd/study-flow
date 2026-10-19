@@ -1,7 +1,6 @@
-// Путь: src/screens/DataSheet.tsx
-// Лист «Резервная копия»: сохранить данные в файл и загрузить обратно.
+// Путь: src/screens/DataScreen.tsx
+// Вкладка «Данные»: синхронизация и резервная копия (сохранить в файл и загрузить обратно).
 import { useState } from 'react'
-import Sheet from '../ui/Sheet'
 import { applyBackup, currentBackup, previousBackup, restorePrevious } from '../data/backupIO'
 import { backupFileName, parseBackup, summarize, type Backup } from '../domain/backup'
 import { clearStash, retrySync, stashedBackup, useSyncState } from '../data/syncEngine'
@@ -18,15 +17,13 @@ function syncSub(st: string, at?: number, message?: string): string {
   return message ?? ''
 }
 
-export default function DataSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function DataScreen({ active }: { active: boolean }) {
   const [pending, setPending] = useState<Backup | null>(null)
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null)
-  const prev = open ? previousBackup() : null
+  const prev = active ? previousBackup() : null
   const sync = useSyncState()
   const [, bump] = useState(0)
-  const stash = open ? stashedBackup() : null
-
-  const close = () => { setPending(null); setMsg(null); onClose() }
+  const stash = active ? stashedBackup() : null
 
   function save(b: Backup = currentBackup()) {
     const blob = new Blob([JSON.stringify(b, null, 2)], { type: 'application/json' })
@@ -54,8 +51,14 @@ export default function DataSheet({ open, onClose }: { open: boolean; onClose: (
   const sum = pending ? summarize(pending) : null
 
   return (
-    <Sheet open={open} onClose={close} title="Данные">
-      <h3 className="section-title" style={{ paddingTop: '.75rem' }}>Синхронизация</h3>
+    <main>
+      <header className="navbar">
+        <h1 className="large-title">Данные</h1>
+      </header>
+      <p className="caption subtitle">Синхронизация и резервная копия</p>
+
+      <div className="data-wrap">
+      <h3 className="section-title">Синхронизация</h3>
       <div className="group">
         <div className="row">
           <span className="row-main">
@@ -126,6 +129,7 @@ export default function DataSheet({ open, onClose }: { open: boolean; onClose: (
       )}
 
       {msg && <p className={`footnote ${msg.error ? 'err-text' : ''}`}>{msg.text}</p>}
-    </Sheet>
+      </div>
+    </main>
   )
 }

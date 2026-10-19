@@ -166,7 +166,9 @@ button:disabled { opacity: .4; cursor: default; }
 .nav-actions { display: flex; gap: .6rem; padding-bottom: .15rem; }
 .subtitle { padding: 0 .25rem .85rem; min-height: 1.4rem; }
 
-.icon-btn .alert-dot { position: absolute; top: .5rem; right: .5rem; width: .6rem; height: .6rem; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--bg); }
+.tab-icon { position: relative; display: grid; }
+.alert-dot { position: absolute; top: -.1rem; right: -.25rem; width: .6rem; height: .6rem; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--bg); }
+.data-wrap { display: grid; gap: .5rem; width: 100%; max-width: 46rem; }
 .icon-btn { width: 2.75rem; height: 2.75rem; border-radius: 50%; display: grid; place-items: center; color: var(--accent-text); position: relative; }
 .icon-btn:active:not(:disabled) { background: var(--glass-hi); }
 .icon-btn.spin svg { animation: spin 1s linear infinite; }
