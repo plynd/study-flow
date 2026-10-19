@@ -118,26 +118,59 @@ export interface DebtCtx {
   debts: Debt[]
 }
 
+const plural = (n: number, one: string, few: string, many: string) =>
+  `${n} ${n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many}`
+
+const hm = (min: number) => (min >= 60 ? `${Math.floor(min / 60)} ч${min % 60 ? ` ${min % 60} мин` : ''}` : `${min} мин`)
+const span = (l: Lesson) => `${fmtTime(l.start)}–${fmtTime(l.end)}`
+
 /**
- * Сводка по долгам на день: у каких преподавателей, которым что-то должен, есть пары и как они стоят относительно твоих.
- * null — слать нечего (нет долгов с преподавателями или ни у кого из них нет очных пар).
+ * План дня одним списком по времени: твои пары, окна между ними и пары преподавателей, которым что-то должен.
+ * Пары преподавателей помечены 🔸. Дистанционные пары преподавателей не показываем.
  */
-export function debtDayText(date: string, label: 'Сегодня' | 'Завтра', ctx: DebtCtx): string | null {
+export function dayText(date: string, label: 'Сегодня' | 'Завтра', ctx: DebtCtx): string | null {
   const own = ownOn(ctx.lessons, ctx.hidden, date)
-  const blocks: string[] = []
-  const notAdded: string[] = []
-  let anyLesson = false
-  for (const g of debtTeachers(ctx.debts, ctx.teachers)) {
-    const head = `${g.label} — ${g.debts.map(debtText).join('; ')}`
-    if (!g.cal) { notAdded.push(g.label); continue }
-    const ls = inPerson(g.cal, date)
-    if (ls.length) anyLesson = true
-    blocks.push([head, ...(ls.length
-      ? ls.map((l) => `• ${fmtTime(l.start)}–${fmtTime(l.end)}${place(l) ? `, ${place(l)}` : ''}: ${relation(l, own)}`)
-      : ['• очных пар нет'])].join('\n'))
+  const person = own.filter((l) => !l.remote)
+  const groups = debtTeachers(ctx.debts, ctx.teachers)
+  const notAdded = groups.filter((g) => !g.cal).map((g) => g.label)
+
+  interface Item { start: number; text: string }
+  const items: Item[] = own.map((l) => {
+    const owner = groups.find((g) => g.cal && g.label && l.teacher && teacherMatches(l.teacher, g.cal))
+    return {
+      start: l.start,
+      text: `${span(l)} · ${l.subject}${l.kind ? ` (${l.kind})` : ''}${place(l) ? ` · ${place(l)}` : ''}${l.teacher ? `\n      ${l.teacher}${owner ? ' 🔸 долг' : ''}` : ''}`,
+    }
+  })
+  let debtLessons = 0
+  for (const g of groups) {
+    if (!g.cal) continue
+    for (const l of inPerson(g.cal, date)) {
+      const rel = relation(l, own)
+      if (rel === 'это и твоя пара') continue // уже в списке как твоя
+      debtLessons++
+      items.push({ start: l.start, text: `🔸 ${span(l)} · ${g.label}${place(l) ? ` · ${place(l)}` : ''}\n      долг: ${g.debts.map(debtText).join('; ')}\n      ${rel}` })
+    }
   }
-  if (!anyLesson) return null
-  const out = [`📚 ${label}, ${weekdayName(date)} ${fmtDate(date)}: преподаватели по долгам`, ...blocks]
+
+  // окна между очными парами от получаса
+  const sorted = [...person].sort((a, b) => a.start - b.start)
+  let reach = sorted[0]?.end ?? 0
+  for (const l of sorted.slice(1)) {
+    if (l.start - reach >= 30) items.push({ start: reach, text: `· · · окно ${fmtTime(reach)}–${fmtTime(l.start)} (${hm(l.start - reach)})` })
+    reach = Math.max(reach, l.end)
+  }
+
+  items.sort((a, b) => a.start - b.start)
+  const parts = [plural(person.length, 'пара', 'пары', 'пар')]
+  if (sorted.length) parts.push(`${fmtTime(sorted[0].start)}–${fmtTime(reach)}`)
+  else if (own.length) parts[0] = 'только дистанционно'
+  if (debtLessons) parts.push(`сдать: ${debtLessons}`)
+
+  const head = `📅 ${label}, ${weekdayName(date)} ${fmtDate(date)}`
+  const body = items.length ? [parts.join(' · '), items.map((i) => i.text).join('\n\n')] : ['Пар нет.']
+  const out = [head, ...body]
+  if (debtLessons) out.push('🔸 — преподаватели, у которых у тебя долг')
   if (notAdded.length) out.push(`Расписания нет, добавь в приложении: ${notAdded.join(', ')}`)
   return out.join('\n\n')
 }

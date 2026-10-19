@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Debt } from './debts'
 import {
-  debtDayText, debtTeachers, defaultNotify, dueWindowReminders, isNotifySettings, localNow, relation, summaryDue,
+  dayText, debtTeachers, defaultNotify, dueWindowReminders, isNotifySettings, localNow, relation, summaryDue,
   teacherMatches, type DebtCtx, type NotifySettings,
 } from './notify'
 import type { Lesson } from './schedule'
@@ -63,30 +63,41 @@ describe('relation', () => {
   })
 })
 
-describe('debtDayText', () => {
+describe('dayText', () => {
   const rud = T('r', 'Рудакова О.Ю.', [L('t1', DAY, 11 * 60 + 20, { teacher: 'Рудакова О.Ю.' }), L('t2', DAY, 15 * 60, { remote: true, room: '' }), L('t3', '2026-10-20', 9 * 60)])
   const ctx: DebtCtx = { lessons: [L('a', DAY, 9 * 60), L('b', DAY, 13 * 60)], hidden, teachers: [rud], debts: [D('1', 'Рудакова')] }
-  it('перечисляет очные пары преподавателя с пометкой про окно, дистант не показывает', () => {
-    const t = debtDayText(DAY, 'Сегодня', ctx)!
+  it('один список по времени: свои пары, окно, пара преподавателя по долгу', () => {
+    const t = dayText(DAY, 'Сегодня', ctx)!
     expect(t).toContain('Сегодня')
-    expect(t).toContain('Рудакова О.Ю. — Матан (сдано 1 из 2)')
-    expect(t).toContain('11:20–12:55, ауд. 208С: у тебя окно')
+    expect(t).toContain('2 пары · 09:00–14:35 · сдать: 1')
+    const at = (s: string) => t.indexOf(s)
+    expect(at('09:00–10:35')).toBeLessThan(at('окно 10:35–13:00'))
+    expect(at('окно 10:35–13:00')).toBeLessThan(at('🔸 11:20–12:55'))
+    expect(t).toContain('долг: Матан (сдано 1 из 2)')
+    expect(t).toContain('у тебя окно')
     expect(t).not.toContain('15:00')
   })
-  it('скрытые пары не мешают и не считаются', () => {
-    const t = debtDayText(DAY, 'Сегодня', { ...ctx, hidden: { subjects: ['Физика'], keys: [], uids: [] } })!
-    expect(t).toContain('нет очных пар')
+  it('пара преподавателя, совпадающая с твоей, не дублируется, а свою помечает', () => {
+    const own = L('a', DAY, 9 * 60, { teacher: 'Рудакова О.Ю.' })
+    const t = dayText(DAY, 'Сегодня', { ...ctx, lessons: [own], teachers: [T('r', 'Рудакова О.Ю.', [L('t', DAY, 9 * 60, { teacher: 'Рудакова О.Ю.' })])] })!
+    expect(t.match(/· Физика/g)).toHaveLength(1)
+    expect(t).not.toContain('🔸 09:00')
+    expect(t).toContain('🔸 долг')
   })
-  it('нет очных пар ни у кого — слать нечего', () => {
-    expect(debtDayText('2026-10-21', 'Завтра', ctx)).toBeNull()
-    expect(debtDayText(DAY, 'Сегодня', { ...ctx, debts: [] })).toBeNull()
+  it('скрытые пары не показываем', () => {
+    const t = dayText(DAY, 'Сегодня', { ...ctx, hidden: { subjects: ['Физика'], keys: [], uids: [] } })!
+    expect(t).not.toContain('09:00')
+    expect(t).toContain('у тебя в этот день нет очных пар')
   })
-  it('преподавателя без расписания упоминаем в конце, но сам он сообщение не вызывает', () => {
-    expect(debtDayText(DAY, 'Сегодня', { ...ctx, debts: [D('1', 'Петров')] })).toBeNull()
-    expect(debtDayText(DAY, 'Сегодня', { ...ctx, debts: [D('1', 'Рудакова'), D('2', 'Петров')] })).toContain('Расписания нет, добавь в приложении: Петров')
+  it('пар нет совсем — так и пишем', () => {
+    expect(dayText('2026-10-21', 'Завтра', ctx)).toContain('Пар нет.')
+    expect(dayText(DAY, 'Сегодня', { ...ctx, lessons: [], debts: [] })).toContain('Пар нет.')
+  })
+  it('преподавателя без расписания упоминаем в конце', () => {
+    expect(dayText(DAY, 'Сегодня', { ...ctx, debts: [D('1', 'Рудакова'), D('2', 'Петров')] })).toContain('Расписания нет, добавь в приложении: Петров')
   })
   it('долг без требований подписан', () => {
-    expect(debtDayText(DAY, 'Сегодня', { ...ctx, debts: [D('1', 'Рудакова', { works: [] })] })).toContain('уточнить требования')
+    expect(dayText(DAY, 'Сегодня', { ...ctx, debts: [D('1', 'Рудакова', { works: [] })] })).toContain('уточнить требования')
   })
 })
 

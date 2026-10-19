@@ -20,9 +20,10 @@ describe('planForUser', () => {
   it('перед парой преподавателя в окне — напоминание', () => {
     expect(planForUser(rows, new Set(), at(11, 10)).map((m) => m.key)).toEqual(['win:t1:2026-10-19'])
   })
-  it('вечером — на завтра; если у преподавателя завтра пар нет, ключ запоминается без текста', () => {
+  it('вечером — план на завтра, даже если пар нет', () => {
     const m = planForUser(rows, new Set(), at(20, 5))
-    expect(m).toEqual([{ key: 'eve:2026-10-20', text: '' }])
+    expect(m.map((x) => x.key)).toEqual(['eve:2026-10-20'])
+    expect(m[0].text).toContain('Пар нет.')
   })
   it('без настроек или выключено — тишина', () => {
     expect(planForUser({ ...rows, 'notify-v1': undefined }, new Set(), at(8, 5))).toEqual([])
