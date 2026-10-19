@@ -10,7 +10,7 @@
 // В редактор Supabase вставляется собранный файл function.js (npm run build:notify), а не этот.
 import type { Debt } from '../../../src/domain/debts'
 import {
-  type DebtCtx, type Message, debtDayText, defaultNotify, dueWindowReminders, isNotifySettings, localNow, notifyEnabled, summaryDue, validTz,
+  type DebtCtx, type Message, dayText, defaultNotify, dueWindowReminders, isNotifySettings, localNow, notifyEnabled, summaryDue, validTz,
 } from '../../../src/domain/notify'
 import { addDays, emptyHidden, type Hidden, type Lesson } from '../../../src/domain/schedule'
 import type { TeacherCal } from '../../../src/domain/teachers'
@@ -38,9 +38,9 @@ export function planForUser(rows: Record<string, unknown>, sent: ReadonlySet<str
 
   // Если слать нечего, всё равно запоминаем, что за этот день решили: не пересчитывать каждые 5 минут
   const morning = summaryDue('morning', settings, now, sent)
-  if (morning) out.push({ key: morning, text: debtDayText(now.date, 'Сегодня', ctx) ?? '' })
+  if (morning) out.push({ key: morning, text: dayText(now.date, 'Сегодня', ctx) ?? '' })
   const evening = summaryDue('evening', settings, now, sent)
-  if (evening) out.push({ key: evening, text: debtDayText(addDays(now.date, 1), 'Завтра', ctx) ?? '' })
+  if (evening) out.push({ key: evening, text: dayText(addDays(now.date, 1), 'Завтра', ctx) ?? '' })
   return out
 }
 

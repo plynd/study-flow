@@ -110,23 +110,49 @@ function relation(l, own) {
 }
 var ownOn = (lessons, hidden, date) => lessons.filter((l) => l.date === date && !isHidden(l, hidden)).sort((a, b) => a.start - b.start);
 var inPerson = (cal, date) => cal.lessons.filter((l) => l.date === date && !l.remote).sort((a, b) => a.start - b.start);
-function debtDayText(date, label, ctx) {
+var plural = (n, one, few, many) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many}`;
+var hm = (min) => min >= 60 ? `${Math.floor(min / 60)} \u0447${min % 60 ? ` ${min % 60} \u043C\u0438\u043D` : ""}` : `${min} \u043C\u0438\u043D`;
+var span = (l) => `${fmtTime(l.start)}\u2013${fmtTime(l.end)}`;
+function dayText(date, label, ctx) {
   const own = ownOn(ctx.lessons, ctx.hidden, date);
-  const blocks = [];
-  const notAdded = [];
-  let anyLesson = false;
-  for (const g of debtTeachers(ctx.debts, ctx.teachers)) {
-    const head = `${g.label} \u2014 ${g.debts.map(debtText).join("; ")}`;
-    if (!g.cal) {
-      notAdded.push(g.label);
-      continue;
+  const person = own.filter((l) => !l.remote);
+  const groups = debtTeachers(ctx.debts, ctx.teachers);
+  const notAdded = groups.filter((g) => !g.cal).map((g) => g.label);
+  const items = own.map((l) => {
+    const owner = groups.find((g) => g.cal && g.label && l.teacher && teacherMatches(l.teacher, g.cal));
+    return {
+      start: l.start,
+      text: `${span(l)} \xB7 ${l.subject}${l.kind ? ` (${l.kind})` : ""}${place(l) ? ` \xB7 ${place(l)}` : ""}${l.teacher ? `
+      ${l.teacher}${owner ? " \u{1F538} \u0434\u043E\u043B\u0433" : ""}` : ""}`
+    };
+  });
+  let debtLessons = 0;
+  for (const g of groups) {
+    if (!g.cal) continue;
+    for (const l of inPerson(g.cal, date)) {
+      const rel = relation(l, own);
+      if (rel === "\u044D\u0442\u043E \u0438 \u0442\u0432\u043E\u044F \u043F\u0430\u0440\u0430") continue;
+      debtLessons++;
+      items.push({ start: l.start, text: `\u{1F538} ${span(l)} \xB7 ${g.label}${place(l) ? ` \xB7 ${place(l)}` : ""}
+      \u0434\u043E\u043B\u0433: ${g.debts.map(debtText).join("; ")}
+      ${rel}` });
     }
-    const ls = inPerson(g.cal, date);
-    if (ls.length) anyLesson = true;
-    blocks.push([head, ...ls.length ? ls.map((l) => `\u2022 ${fmtTime(l.start)}\u2013${fmtTime(l.end)}${place(l) ? `, ${place(l)}` : ""}: ${relation(l, own)}`) : ["\u2022 \u043E\u0447\u043D\u044B\u0445 \u043F\u0430\u0440 \u043D\u0435\u0442"]].join("\n"));
   }
-  if (!anyLesson) return null;
-  const out = [`\u{1F4DA} ${label}, ${weekdayName(date)} ${fmtDate(date)}: \u043F\u0440\u0435\u043F\u043E\u0434\u0430\u0432\u0430\u0442\u0435\u043B\u0438 \u043F\u043E \u0434\u043E\u043B\u0433\u0430\u043C`, ...blocks];
+  const sorted = [...person].sort((a, b) => a.start - b.start);
+  let reach = sorted[0]?.end ?? 0;
+  for (const l of sorted.slice(1)) {
+    if (l.start - reach >= 30) items.push({ start: reach, text: `\xB7 \xB7 \xB7 \u043E\u043A\u043D\u043E ${fmtTime(reach)}\u2013${fmtTime(l.start)} (${hm(l.start - reach)})` });
+    reach = Math.max(reach, l.end);
+  }
+  items.sort((a, b) => a.start - b.start);
+  const parts = [plural(person.length, "\u043F\u0430\u0440\u0430", "\u043F\u0430\u0440\u044B", "\u043F\u0430\u0440")];
+  if (sorted.length) parts.push(`${fmtTime(sorted[0].start)}\u2013${fmtTime(reach)}`);
+  else if (own.length) parts[0] = "\u0442\u043E\u043B\u044C\u043A\u043E \u0434\u0438\u0441\u0442\u0430\u043D\u0446\u0438\u043E\u043D\u043D\u043E";
+  if (debtLessons) parts.push(`\u0441\u0434\u0430\u0442\u044C: ${debtLessons}`);
+  const head = `\u{1F4C5} ${label}, ${weekdayName(date)} ${fmtDate(date)}`;
+  const body = items.length ? [parts.join(" \xB7 "), items.map((i) => i.text).join("\n\n")] : ["\u041F\u0430\u0440 \u043D\u0435\u0442."];
+  const out = [head, ...body];
+  if (debtLessons) out.push("\u{1F538} \u2014 \u043F\u0440\u0435\u043F\u043E\u0434\u0430\u0432\u0430\u0442\u0435\u043B\u0438, \u0443 \u043A\u043E\u0442\u043E\u0440\u044B\u0445 \u0443 \u0442\u0435\u0431\u044F \u0434\u043E\u043B\u0433");
   if (notAdded.length) out.push(`\u0420\u0430\u0441\u043F\u0438\u0441\u0430\u043D\u0438\u044F \u043D\u0435\u0442, \u0434\u043E\u0431\u0430\u0432\u044C \u0432 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0438: ${notAdded.join(", ")}`);
   return out.join("\n\n");
 }
@@ -176,9 +202,9 @@ function planForUser(rows, sent, nowMs) {
   const now = localNow(nowMs, settings.tz);
   const out = dueWindowReminders(ctx, now, settings.before, sent);
   const morning = summaryDue("morning", settings, now, sent);
-  if (morning) out.push({ key: morning, text: debtDayText(now.date, "\u0421\u0435\u0433\u043E\u0434\u043D\u044F", ctx) ?? "" });
+  if (morning) out.push({ key: morning, text: dayText(now.date, "\u0421\u0435\u0433\u043E\u0434\u043D\u044F", ctx) ?? "" });
   const evening = summaryDue("evening", settings, now, sent);
-  if (evening) out.push({ key: evening, text: debtDayText(addDays(now.date, 1), "\u0417\u0430\u0432\u0442\u0440\u0430", ctx) ?? "" });
+  if (evening) out.push({ key: evening, text: dayText(addDays(now.date, 1), "\u0417\u0430\u0432\u0442\u0440\u0430", ctx) ?? "" });
   return out;
 }
 var CORS = {
