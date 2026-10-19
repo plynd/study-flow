@@ -4,18 +4,31 @@ import { useState } from 'react'
 import Sheet from '../ui/Sheet'
 import { applyBackup, currentBackup, previousBackup, restorePrevious } from '../data/backupIO'
 import { backupFileName, parseBackup, summarize, type Backup } from '../domain/backup'
+import { clearStash, stashedBackup, syncNow, useSyncState } from '../data/syncEngine'
 
 const fmt = (at: number) => (at ? new Date(at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'неизвестно когда')
+
+const syncTitle = (st: string) => ({
+  off: 'Не подключена', connecting: 'Подключаюсь…', synced: 'Данные синхронизированы', saving: 'Сохраняю…', offline: 'Нет связи', error: 'Ошибка синхронизации',
+} as Record<string, string>)[st] ?? st
+
+function syncSub(st: string, at?: number, message?: string): string {
+  if (st === 'synced' && at) return `Последний раз: ${new Date(at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}. Одинаково в Telegram и на других устройствах.`
+  if (st === 'off') return message ?? 'Данные хранятся только на этом устройстве.'
+  return message ?? ''
+}
 
 export default function DataSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [pending, setPending] = useState<Backup | null>(null)
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null)
   const prev = open ? previousBackup() : null
+  const sync = useSyncState()
+  const [, bump] = useState(0)
+  const stash = open ? stashedBackup() : null
 
   const close = () => { setPending(null); setMsg(null); onClose() }
 
-  function save() {
-    const b = currentBackup()
+  function save(b: Backup = currentBackup()) {
     const blob = new Blob([JSON.stringify(b, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -41,14 +54,38 @@ export default function DataSheet({ open, onClose }: { open: boolean; onClose: (
   const sum = pending ? summarize(pending) : null
 
   return (
-    <Sheet open={open} onClose={close} title="Резервная копия">
-      <p className="footnote" style={{ paddingTop: '.75rem' }}>
-        Долги, заметки и расписание хранятся только в этом браузере. Файл копии — способ их не потерять и перенести.
+    <Sheet open={open} onClose={close} title="Данные">
+      <h3 className="section-title" style={{ paddingTop: '.75rem' }}>Синхронизация</h3>
+      <div className="group">
+        <div className="row">
+          <span className="row-main">
+            <span className="row-title">{syncTitle(sync.status)}</span>
+            <span className="row-sub">{syncSub(sync.status, sync.at, sync.message)}</span>
+          </span>
+        </div>
+        {(sync.status === 'synced' || sync.status === 'offline' || sync.status === 'error') && (
+          <button className="row accent" onClick={() => { void syncNow() }}><span className="row-title">Синхронизировать сейчас</span></button>
+        )}
+      </div>
+      {stash && (
+        <>
+          <p className="footnote">
+            При синхронизации часть данных на этом устройстве заменили более новыми с сервера. Прежние версии не пропали, их можно сохранить в файл.
+          </p>
+          <div className="group">
+            <button className="row accent" onClick={() => save(stash)}><span className="row-title">Сохранить замещённые данные</span></button>
+            <button className="row danger" onClick={() => { clearStash(); bump((n) => n + 1) }}><span className="row-title">Удалить замещённые данные</span></button>
+          </div>
+        </>
+      )}
+
+      <p className="footnote">
+        Файл копии — запасной способ не потерять данные и перенести их куда угодно.
       </p>
 
       <h3 className="section-title">Сохранить</h3>
       <div className="group">
-        <button className="row accent" onClick={save}><span className="row-title">Сохранить в файл</span></button>
+        <button className="row accent" onClick={() => save()}><span className="row-title">Сохранить в файл</span></button>
         <button className="row accent" onClick={copy}><span className="row-title">Скопировать текстом</span></button>
       </div>
 
