@@ -14,8 +14,8 @@ select cron.schedule(
   '*/5 * * * *',
   $$
   select net.http_post(
-    url     := 'https://ЗАМЕНИ-НА-ID-ПРОЕКТА.supabase.co/functions/v1/notify',
-    headers := '{"content-type": "application/json", "x-cron-secret": "ЗАМЕНИ-НА-CRON_SECRET"}'::jsonb,
+    url     := 'https://goddfthabodgfpysnemn.supabase.co/functions/v1/notify',
+    headers := '{"content-type": "application/json", "x-cron-secret": "B9ZfUVAFsy4LZW2uL8Iz7yNvGKYluTNC"}'::jsonb,
     body    := '{}'::jsonb
   );
   $$
