@@ -4,7 +4,6 @@ import {
   debtProgress, debtStatus, makeWorks, totalProgress, type Debt, type DebtStatus,
 } from '../domain/debts'
 import Picker from './Picker'
-import DataButton from '../ui/DataButton'
 import Sheet from '../ui/Sheet'
 import { addTeacherFromUrl } from '../data/addTeacher'
 import { useTeachers } from '../data/teachersStore'
@@ -98,7 +97,6 @@ export default function DebtsScreen() {
       <header className="navbar">
         <h1 className="large-title">Долги</h1>
         <div className="nav-actions">
-          <DataButton />
           <button className="icon-btn press" aria-label="Добавить долг" onClick={() => setAdding(true)}><IconPlus /></button>
         </div>
       </header>

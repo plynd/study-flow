@@ -19,6 +19,7 @@ export const IconPin = ({ size = 14 }: { size?: number }) => (
 )
 export const IconRefresh = () => <Svg><path d="M20 11a8 8 0 1 0-2.4 5.7" /><path d="M20 4.5V11h-6.5" /></Svg>
 export const IconTune = () => <Svg><path d="M4 7h9M19 7h1M4 17h1M11 17h9" /><circle cx="16" cy="7" r="2.2" /><circle cx="8" cy="17" r="2.2" /></Svg>
+export const IconData = () => <Svg><ellipse cx="12" cy="6" rx="7.5" ry="3" /><path d="M4.5 6v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3V6M4.5 12v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6" /></Svg>
 export const IconPlus = () => <Svg><path d="M12 5v14M5 12h14" /></Svg>
 export const IconMinus = () => <Svg><path d="M5 12h14" /></Svg>
 export const IconChevronRight = ({ size = 16 }: { size?: number }) => <Svg size={size}><path d="m9 6 6 6-6 6" /></Svg>
