@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "build:yandex": "node yandex/build.mjs"
+    "build:yandex": "node yandex/build.mjs",
+    "build:notify": "node supabase/build.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

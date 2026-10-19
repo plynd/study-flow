@@ -2,10 +2,12 @@
 // Резервная копия: что в неё входит, как собрать и как проверить чужой файл перед загрузкой.
 // Без React и без доступа к хранилищу: чтение и запись — в data/backupIO.ts.
 
+import { isNotifySettings } from './notify'
+
 /** Ключи хранилища, которые входят в копию. Кэш списков сайта (dir-cache-v1) не входит: он восстанавливается сам. */
 export const BACKUP_KEYS = [
   'debts-v1', 'notes-v1', 'schedule-lessons-v1', 'schedule-hidden-v1',
-  'schedule-teachers-v1', 'schedule-show-matches-v1', 'schedule-own-source-v1',
+  'schedule-teachers-v1', 'schedule-show-matches-v1', 'schedule-own-source-v1', 'notify-v1',
 ] as const
 export type BackupKey = (typeof BACKUP_KEYS)[number]
 
@@ -34,6 +36,7 @@ const CHECKS: Record<BackupKey, (v: unknown) => boolean> = {
   'schedule-teachers-v1': (v) => arrOf(v, (t) => isObj(t) && isStr(t.id) && isStr(t.name) && arrOf(t.lessons, isLesson)),
   'schedule-show-matches-v1': (v) => typeof v === 'boolean',
   'schedule-own-source-v1': (v) => isObj(v) && isStr(v.url),
+  'notify-v1': isNotifySettings,
 }
 
 function isLesson(l: unknown): boolean {

@@ -9,7 +9,7 @@ create table if not exists public.user_data (
   user_id    uuid        not null references auth.users (id) on delete cascade,
   key        text        not null check (key in (
     'debts-v1', 'notes-v1', 'schedule-lessons-v1', 'schedule-hidden-v1',
-    'schedule-teachers-v1', 'schedule-show-matches-v1', 'schedule-own-source-v1'
+    'schedule-teachers-v1', 'schedule-show-matches-v1', 'schedule-own-source-v1', 'notify-v1'
   )),
   value      jsonb       not null,
   updated_at timestamptz not null default now(),
@@ -32,6 +32,24 @@ create policy "user_data: менять своё"   on public.user_data for updat
   using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "user_data: удалять своё"  on public.user_data for delete to authenticated
   using ((select auth.uid()) = user_id);
+
+-- Если таблица уже была создана раньше (без ключа notify-v1), расширяем список допустимых ключей
+alter table public.user_data drop constraint if exists user_data_key_check;
+alter table public.user_data add constraint user_data_key_check check (key in (
+  'debts-v1', 'notes-v1', 'schedule-lessons-v1', 'schedule-hidden-v1',
+  'schedule-teachers-v1', 'schedule-show-matches-v1', 'schedule-own-source-v1', 'notify-v1'
+));
+
+-- Что уже отправлено ботом (чтобы не слать одно и то же дважды). Читает и пишет только серверная функция:
+-- RLS включена, правил нет, значит обычным пользователям таблица недоступна.
+create table if not exists public.notify_sent (
+  user_id uuid        not null references auth.users (id) on delete cascade,
+  key     text        not null,
+  sent_at timestamptz not null default now(),
+  primary key (user_id, key)
+);
+alter table public.notify_sent enable row level security;
+revoke all on public.notify_sent from anon, authenticated;
 
 -- Время изменения ставит сервер, а не телефон: часы на устройствах могут отличаться
 create or replace function public.touch_updated_at() returns trigger
