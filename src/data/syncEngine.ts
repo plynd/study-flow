@@ -162,10 +162,10 @@ function pullSoon() {
   void syncNow()
 }
 
-/** Вызывается один раз при старте, до показа интерфейса. Ничего не бросает: без сети приложение работает с локальными данными. */
-export async function initSync(): Promise<void> {
-  if (!supabaseConfigured) return
-  watchWrites()
+let listening = false
+
+/** Вход и первая синхронизация. Можно вызывать повторно: кнопка «Синхронизировать сейчас» после ошибки входа делает именно это. */
+async function connect(): Promise<void> {
   setState({ status: 'connecting' })
   const auth = await ensureSession().catch(() => ({ ok: false as const, reason: 'failed' as const, message: 'Не удалось войти' }))
   if (!auth.ok) {
@@ -174,7 +174,24 @@ export async function initSync(): Promise<void> {
   }
   ready = true
   lastPull = Date.now()
-  document.addEventListener('visibilitychange', pullSoon)
-  window.addEventListener('online', () => { lastPull = 0; pullSoon() })
+  if (!listening) {
+    listening = true
+    document.addEventListener('visibilitychange', pullSoon)
+    window.addEventListener('online', () => { lastPull = 0; pullSoon() })
+  }
   await syncNow()
+}
+
+/** Вызывается один раз при старте, до показа интерфейса. Ничего не бросает: без сети приложение работает с локальными данными. */
+export async function initSync(): Promise<void> {
+  if (!supabaseConfigured) return
+  watchWrites()
+  await connect()
+}
+
+/** Кнопка «Синхронизировать сейчас»: если входа ещё нет, пробуем войти заново, иначе просто обновляем данные */
+export async function retrySync(): Promise<void> {
+  if (!supabaseConfigured) return
+  if (ready) await syncNow()
+  else await connect()
 }

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Sheet from '../ui/Sheet'
 import { applyBackup, currentBackup, previousBackup, restorePrevious } from '../data/backupIO'
 import { backupFileName, parseBackup, summarize, type Backup } from '../domain/backup'
-import { clearStash, stashedBackup, syncNow, useSyncState } from '../data/syncEngine'
+import { clearStash, retrySync, stashedBackup, useSyncState } from '../data/syncEngine'
 
 const fmt = (at: number) => (at ? new Date(at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'неизвестно когда')
 
@@ -64,7 +64,7 @@ export default function DataSheet({ open, onClose }: { open: boolean; onClose: (
           </span>
         </div>
         {(sync.status === 'synced' || sync.status === 'offline' || sync.status === 'error') && (
-          <button className="row accent" onClick={() => { void syncNow() }}><span className="row-title">Синхронизировать сейчас</span></button>
+          <button className="row accent" onClick={() => { void retrySync() }}><span className="row-title">Синхронизировать сейчас</span></button>
         )}
       </div>
       {stash && (
