@@ -24,6 +24,6 @@ export async function ensureSession(): Promise<AuthResult> {
     const { error } = await sb.auth.setSession({ access_token: body.access_token, refresh_token: body.refresh_token })
     return error ? { ok: false, reason: 'failed', message: error.message } : { ok: true }
   } catch {
-    return { ok: false, reason: 'failed', message: 'Нет связи с сервером' }
+    return { ok: false, reason: 'failed', message: 'Функция входа telegram-auth не отвечает: проверь, что она задеплоена и у неё выключен Verify JWT' }
   }
 }
