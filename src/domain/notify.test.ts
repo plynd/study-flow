@@ -84,6 +84,13 @@ describe('dayText', () => {
     expect(t).not.toContain('🔸 09:00')
     expect(t).toContain('🔸 долг')
   })
+  it('пары преподавателя поверх твоих пар не показываем, звание в имени обрезаем', () => {
+    const busy = T('r', 'Рудакова О.Ю. (доц.), АлтГУ', [L('t1', DAY, 9 * 60 + 10, { teacher: 'Рудакова О.Ю.' }), L('t2', DAY, 11 * 60 + 20, { teacher: 'Рудакова О.Ю.' })])
+    const t = dayText(DAY, 'Сегодня', { ...ctx, teachers: [busy] })!
+    expect(t).not.toContain('09:10')
+    expect(t).toContain('🔸 11:20–12:55 · Рудакова О.Ю. ·')
+    expect(t).not.toContain('доц.')
+  })
   it('скрытые пары не показываем', () => {
     const t = dayText(DAY, 'Сегодня', { ...ctx, hidden: { subjects: ['Физика'], keys: [], uids: [] } })!
     expect(t).not.toContain('09:00')
