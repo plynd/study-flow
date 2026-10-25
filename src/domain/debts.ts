@@ -83,3 +83,9 @@ export function makeWorks(count: number, idPrefix = 'w'): Work[] {
     done: false,
   }))
 }
+
+/** Работы по списку названий: по одному в строке, пустые строки пропускаем, не больше 30 */
+export function worksFromTitles(text: string, idPrefix = 'w'): Work[] {
+  return text.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 30)
+    .map((title, i) => ({ id: `${idPrefix}${i + 1}`, title, done: false }))
+}

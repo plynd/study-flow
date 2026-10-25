@@ -1,6 +1,6 @@
 // Путь: src/domain/debts.test.ts
 import { describe, expect, it } from 'vitest'
-import { debtProgress, debtStatus, makeWorks, totalProgress, type Debt } from './debts'
+import { debtProgress, debtStatus, makeWorks, worksFromTitles, totalProgress, type Debt } from './debts'
 
 const debt = (over: Partial<Debt> = {}): Debt => ({
   id: 'd', subject: 'Предмет', closedManually: false, works: [], ...over,
@@ -60,5 +60,18 @@ describe('totalProgress', () => {
 describe('makeWorks', () => {
   it('называет Работа 1…N', () => {
     expect(makeWorks(3).map((w) => w.title)).toEqual(['Работа 1', 'Работа 2', 'Работа 3'])
+  })
+})
+
+describe('worksFromTitles', () => {
+  it('одна работа на строку, пустые строки и пробелы пропускаем', () => {
+    const w = worksFromTitles('  Лаба 1: Excel \n\nКурсовая\n   \n', 'x')
+    expect(w.map((x) => x.title)).toEqual(['Лаба 1: Excel', 'Курсовая'])
+    expect(w.map((x) => x.id)).toEqual(['x1', 'x2'])
+    expect(w.every((x) => !x.done)).toBe(true)
+  })
+  it('пустой текст — работ нет, не больше 30', () => {
+    expect(worksFromTitles('  \n ')).toEqual([])
+    expect(worksFromTitles(Array.from({ length: 40 }, (_, i) => `р${i}`).join('\n'))).toHaveLength(30)
   })
 })
