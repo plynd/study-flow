@@ -162,8 +162,9 @@ export default function DebtsScreen() {
       <Sheet open={!!open} onClose={closeSheet} title={open?.subject ?? ''}>
         {open && (
           <>
-            {open.subject.length > 28 && <p className="headline" style={{ textAlign: 'center', paddingTop: '.75rem' }}>{open.subject}</p>}
-            {open.teacher && <p className="caption" style={{ textAlign: 'center' }}>{open.teacher}</p>}
+            {/* Название в шапке листа тянется как жест, поэтому копировать с телефона можно отсюда: зажать и выделить */}
+            <p className="headline selectable" style={{ textAlign: 'center', paddingTop: '.75rem' }}>{open.subject}</p>
+            {open.teacher && <p className="caption selectable" style={{ textAlign: 'center' }}>{open.teacher}</p>}
 
             <h3 className="section-title">Работы{open.works.length > 0 && ` · ${debtProgress(open).done} из ${open.works.length}`}</h3>
             <div className="group">

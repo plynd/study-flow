@@ -156,6 +156,8 @@ button:disabled { opacity: .4; cursor: default; }
 
 /* ——— Типографика ——— */
 .large-title { font-size: 2.125rem; line-height: 1.1; font-weight: 700; letter-spacing: -.026em; }
+/* Текст, который можно выделить и скопировать (на телефоне зажатием) */
+.selectable { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 .headline { font-size: 1.0625rem; line-height: 1.3; font-weight: 600; letter-spacing: -.014em; }
 .caption { font-size: .8125rem; line-height: 1.35; color: var(--text-2); letter-spacing: .005em; }
 .num { font-variant-numeric: tabular-nums; }

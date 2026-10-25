@@ -148,8 +148,9 @@ export function dayText(date: string, label: 'Сегодня' | 'Завтра', 
     for (const l of inPerson(g.cal, date)) {
       const rel = relation(l, own)
       if (rel === 'это и твоя пара') continue // уже в списке как твоя
+      if (rel.startsWith('в это время у тебя')) continue // на такую пару всё равно не попасть: не шумим
       debtLessons++
-      items.push({ start: l.start, text: `🔸 ${span(l)} · ${g.label}${place(l) ? ` · ${place(l)}` : ''}\n      долг: ${g.debts.map(debtText).join('; ')}\n      ${rel}` })
+      items.push({ start: l.start, text: `🔸 ${span(l)} · ${g.label.replace(/\s*\(.*$/, '')}${place(l) ? ` · ${place(l)}` : ''}\n      долг: ${g.debts.map(debtText).join('; ')}\n      ${rel}` })
     }
   }
 
