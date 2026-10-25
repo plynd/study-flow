@@ -1,6 +1,6 @@
 // Путь: src/screens/Picker.tsx
 import { useEffect, useRef, useState } from 'react'
-import { apiUrl } from '../data/api'
+import { apiFetch } from '../data/api'
 import { IconChevronRight } from '../ui/icons'
 import { LEAF_DEPTH, depthOf, icsUrlFor, rootPath, type DirItem, type DirKind, type PageRef, type SearchItem } from '../domain/directory'
 
@@ -23,7 +23,7 @@ function loadDir(path: string): Promise<DirItem[]> {
   let p = inflight.get(path)
   if (!p) {
     p = (async () => {
-      const r = await fetch(apiUrl('directory', { path })).catch(() => null)
+      const r = await apiFetch('directory', { path }).catch(() => null)
       if (!r) throw new Error('Нет связи с сервером приложения.')
       const body = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(body.error ?? `Ошибка ${r.status}.`)
@@ -43,7 +43,7 @@ async function searchSite(q: string, kind: DirKind, page?: PageRef): Promise<Sea
   const key = `${kind}|${q.toLowerCase()}|${page ? page.param + page.n : ''}`
   const hit = searchCache.get(key)
   if (hit) return hit
-  const r = await fetch(apiUrl('search', { in: kind, q, ...(page ? { pp: page.param, pn: page.n } : {}) })).catch(() => null)
+  const r = await apiFetch('search', { in: kind, q, ...(page ? { pp: page.param, pn: page.n } : {}) }).catch(() => null)
   if (!r) throw new Error('Нет связи с сервером приложения.')
   const body = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(body.error ?? `Ошибка ${r.status}.`)

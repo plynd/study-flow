@@ -5,9 +5,11 @@
 import { GET as search } from '../api/search.js'
 import { GET as directory } from '../api/directory.js'
 import { GET as ics } from '../api/ics.js'
+import { makeLimiter, verifyTelegram } from './auth.js'
 
 interface YandexEvent {
   httpMethod?: string
+  headers?: Record<string, string> | null
   path?: string
   url?: string
   queryStringParameters?: Record<string, string> | null
@@ -19,8 +21,20 @@ interface YandexResponse { statusCode: number; headers: Record<string, string>; 
 
 const ROUTES: Record<string, (r: Request) => Promise<Response>> = { search, directory, ics }
 
-// Страницу открывает браузер с другого адреса (Vercel), поэтому разрешаем чтение: только GET без особых заголовков
-const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, OPTIONS', 'access-control-expose-headers': 'Retry-After' }
+// Страницу открывает браузер с другого адреса (Vercel). Адрес открыт всем, поэтому доступ даёт не CORS, а подпись Telegram
+// в заголовке x-tg-init-data (см. auth.ts). Из-за этого заголовка браузер сначала шлёт OPTIONS: его разрешаем без проверки.
+const CORS = {
+  'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, OPTIONS',
+  'access-control-allow-headers': 'x-tg-init-data', 'access-control-expose-headers': 'Retry-After',
+}
+const HEAD = { ...CORS, 'content-type': 'application/json; charset=utf-8' }
+
+// Не больше 30 запросов в минуту от одного человека: сайт asu.ru не должен получать лишнего
+const limiter = makeLimiter(30, 60_000)
+
+const headerOf = (event: YandexEvent, name: string) =>
+  Object.entries(event.headers ?? {}).find(([k]) => k.toLowerCase() === name)?.[1]
+const env = (name: string): string | undefined => (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env[name]
 
 /** Параметры запроса: Yandex кладёт их в разные поля в зависимости от режима вызова, берём из любого */
 export function queryOf(event: YandexEvent): Record<string, string> {
@@ -46,11 +60,16 @@ export async function handler(event: YandexEvent): Promise<YandexResponse> {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' }
   if (event.httpMethod && event.httpMethod !== 'GET') return { statusCode: 405, headers: CORS, body: '' }
 
+  const who = verifyTelegram(headerOf(event, 'x-tg-init-data'), env('TELEGRAM_BOT_TOKEN'), env('ALLOWED_TG_IDS'))
+  if (!who.ok) return { statusCode: who.status, headers: HEAD, body: JSON.stringify({ error: who.error }) }
+  const rate = limiter(who.id)
+  if (!rate.ok) {
+    return { statusCode: 429, headers: { ...HEAD, 'retry-after': String(rate.retryAfterSec) }, body: JSON.stringify({ error: 'Слишком часто. Подожди немного.' }) }
+  }
+
   const name = routeOf(event)
   const fn = Object.hasOwn(ROUTES, name) ? ROUTES[name] : undefined
-  if (!fn) {
-    return { statusCode: 404, headers: { ...CORS, 'content-type': 'application/json; charset=utf-8' }, body: JSON.stringify({ error: 'Неизвестный адрес.', debug: { keys: Object.keys(event), url: event.url, path: event.path, payload: JSON.stringify((event as {payload?: unknown}).payload ?? null).slice(0, 1500), query: queryOf(event) } }) }
-  }
+  if (!fn) return { statusCode: 404, headers: HEAD, body: JSON.stringify({ error: 'Неизвестный адрес.' }) }
 
   const params = new URLSearchParams()
   for (const [k, v] of Object.entries(queryOf(event))) {

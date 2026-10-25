@@ -315,9 +315,63 @@ async function GET3(request) {
   }
 }
 
+// yandex/auth.ts
+var import_node_crypto = require("node:crypto");
+var MAX_AGE_SEC = 24 * 60 * 60;
+function verifyTelegram(initData, botToken, allowedIds, nowSec = Math.floor(Date.now() / 1e3)) {
+  if (!botToken) return { ok: false, status: 500, error: "\u0424\u0443\u043D\u043A\u0446\u0438\u044F \u043D\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D\u0430: \u043D\u0435\u0442 TELEGRAM_BOT_TOKEN." };
+  const allowed = (allowedIds ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (allowed.length === 0) return { ok: false, status: 500, error: "\u0424\u0443\u043D\u043A\u0446\u0438\u044F \u043D\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D\u0430: \u043D\u0435\u0442 ALLOWED_TG_IDS." };
+  if (!initData) return { ok: false, status: 401, error: "\u041E\u0442\u043A\u0440\u043E\u0439 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0438\u0437 Telegram." };
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash) return { ok: false, status: 401, error: "\u041D\u0435\u0442 \u043F\u043E\u0434\u043F\u0438\u0441\u0438 Telegram." };
+  params.delete("hash");
+  const check = [...params.entries()].map(([k, v]) => `${k}=${v}`).sort().join("\n");
+  const secret = (0, import_node_crypto.createHmac)("sha256", "WebAppData").update(botToken).digest();
+  const expected = (0, import_node_crypto.createHmac)("sha256", secret).update(check).digest("hex");
+  const a = Buffer.from(expected), b = Buffer.from(hash);
+  if (a.length !== b.length || !(0, import_node_crypto.timingSafeEqual)(a, b)) return { ok: false, status: 401, error: "\u041F\u043E\u0434\u043F\u0438\u0441\u044C Telegram \u043D\u0435 \u043F\u043E\u0434\u043E\u0448\u043B\u0430." };
+  const date = Number(params.get("auth_date"));
+  if (!Number.isFinite(date) || nowSec - date > MAX_AGE_SEC || date - nowSec > 300) {
+    return { ok: false, status: 401, error: "\u0414\u0430\u043D\u043D\u044B\u0435 \u0432\u0445\u043E\u0434\u0430 \u0443\u0441\u0442\u0430\u0440\u0435\u043B\u0438: \u043E\u0442\u043A\u0440\u043E\u0439 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0437\u0430\u043D\u043E\u0432\u043E." };
+  }
+  let id;
+  try {
+    id = JSON.parse(params.get("user") ?? "").id;
+  } catch {
+    id = NaN;
+  }
+  if (typeof id !== "number" || !Number.isFinite(id)) return { ok: false, status: 401, error: "\u041D\u0435\u0442 \u0434\u0430\u043D\u043D\u044B\u0445 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F." };
+  if (!allowed.includes(String(id))) return { ok: false, status: 403, error: "\u042D\u0442\u043E\u0442 \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u043D\u0435 \u0434\u043E\u043F\u0443\u0449\u0435\u043D." };
+  return { ok: true, id };
+}
+function makeLimiter(max, windowMs) {
+  const hits = /* @__PURE__ */ new Map();
+  return (id, now = Date.now()) => {
+    const recent = (hits.get(id) ?? []).filter((t) => now - t < windowMs);
+    if (recent.length >= max) {
+      hits.set(id, recent);
+      return { ok: false, retryAfterSec: Math.max(1, Math.ceil((windowMs - (now - recent[0])) / 1e3)) };
+    }
+    recent.push(now);
+    hits.set(id, recent);
+    return { ok: true };
+  };
+}
+
 // yandex/index.ts
 var ROUTES = { search: GET, directory: GET2, ics: GET3 };
-var CORS = { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, OPTIONS", "access-control-expose-headers": "Retry-After" };
+var CORS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, OPTIONS",
+  "access-control-allow-headers": "x-tg-init-data",
+  "access-control-expose-headers": "Retry-After"
+};
+var HEAD = { ...CORS, "content-type": "application/json; charset=utf-8" };
+var limiter = makeLimiter(30, 6e4);
+var headerOf = (event, name) => Object.entries(event.headers ?? {}).find(([k]) => k.toLowerCase() === name)?.[1];
+var env = (name) => globalThis.process?.env[name];
 function queryOf(event) {
   const out = {};
   const fromUrl = event.rawQueryString ?? (event.url ?? "").split("?")[1] ?? "";
@@ -337,11 +391,15 @@ function routeOf(event) {
 async function handler(event) {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS, body: "" };
   if (event.httpMethod && event.httpMethod !== "GET") return { statusCode: 405, headers: CORS, body: "" };
+  const who = verifyTelegram(headerOf(event, "x-tg-init-data"), env("TELEGRAM_BOT_TOKEN"), env("ALLOWED_TG_IDS"));
+  if (!who.ok) return { statusCode: who.status, headers: HEAD, body: JSON.stringify({ error: who.error }) };
+  const rate = limiter(who.id);
+  if (!rate.ok) {
+    return { statusCode: 429, headers: { ...HEAD, "retry-after": String(rate.retryAfterSec) }, body: JSON.stringify({ error: "\u0421\u043B\u0438\u0448\u043A\u043E\u043C \u0447\u0430\u0441\u0442\u043E. \u041F\u043E\u0434\u043E\u0436\u0434\u0438 \u043D\u0435\u043C\u043D\u043E\u0433\u043E." }) };
+  }
   const name = routeOf(event);
   const fn = Object.hasOwn(ROUTES, name) ? ROUTES[name] : void 0;
-  if (!fn) {
-    return { statusCode: 404, headers: { ...CORS, "content-type": "application/json; charset=utf-8" }, body: JSON.stringify({ error: "\u041D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u044B\u0439 \u0430\u0434\u0440\u0435\u0441.", debug: { keys: Object.keys(event), url: event.url, path: event.path, payload: JSON.stringify(event.payload ?? null).slice(0, 1500), query: queryOf(event) } }) };
-  }
+  if (!fn) return { statusCode: 404, headers: HEAD, body: JSON.stringify({ error: "\u041D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u044B\u0439 \u0430\u0434\u0440\u0435\u0441." }) };
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(queryOf(event))) {
     if (k !== "route" && k !== "integration") params.set(k, String(v));
