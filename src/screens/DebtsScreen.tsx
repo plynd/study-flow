@@ -1,7 +1,7 @@
 // Путь: src/screens/DebtsScreen.tsx
 import { useEffect, useState } from 'react'
 import {
-  debtProgress, debtStatus, makeWorks, totalProgress, type Debt, type DebtStatus,
+  debtProgress, debtStatus, makeWorks, totalProgress, worksFromTitles, type Debt, type DebtStatus,
 } from '../domain/debts'
 import Picker from './Picker'
 import Sheet from '../ui/Sheet'
@@ -75,6 +75,8 @@ export default function DebtsScreen() {
 
   const addWork = (d: Debt) =>
     patch(d.id, { works: [...d.works, { id: uid(), title: `Работа ${d.works.length + 1}`, done: false }] })
+  const renameWork = (d: Debt, workId: string, title: string) =>
+    patch(d.id, { works: d.works.map((w) => (w.id === workId ? { ...w, title } : w)) })
   const removeLastWork = (d: Debt) => patch(d.id, { works: d.works.slice(0, -1) })
 
   const toggleClosed = (d: Debt) => {
@@ -168,11 +170,15 @@ export default function DebtsScreen() {
 
             <h3 className="section-title">Работы{open.works.length > 0 && ` · ${debtProgress(open).done} из ${open.works.length}`}</h3>
             <div className="group">
-              {open.works.map((w) => (
-                <label key={w.id} className="row work-row">
-                  <input type="checkbox" className="chk" checked={w.done} onChange={() => toggleWork(open, w.id)} />
-                  <span className={`row-title ${w.done ? 'done-text' : ''}`}>{w.title}</span>
-                </label>
+              {open.works.map((w, i) => (
+                <div key={w.id} className="row work-row">
+                  <input type="checkbox" className="chk" aria-label={`Сдана: ${w.title}`} checked={w.done} onChange={() => toggleWork(open, w.id)} />
+                  <input className={`row-title work-title ${w.done ? 'done-text' : ''}`} aria-label="Название работы" value={w.title}
+                    placeholder={`Работа ${i + 1}`} enterKeyHint="done"
+                    onChange={(e) => renameWork(open, w.id, e.target.value)}
+                    onBlur={(e) => { if (!e.target.value.trim()) renameWork(open, w.id, `Работа ${i + 1}`) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
+                </div>
               ))}
               {open.works.length === 0 && (
                 <div className="row"><span className="row-sub">Требования не уточнены. Добавь работы кнопкой «+», когда узнаешь.</span></div>
@@ -185,6 +191,8 @@ export default function DebtsScreen() {
                 </div>
               </div>
             </div>
+
+            {open.works.length > 0 && <p className="footnote">Нажми на название работы, чтобы переименовать её.</p>}
 
             <h3 className="section-title">Преподаватель</h3>
             <div className="group">
@@ -269,22 +277,27 @@ function AddForm({ onSave }: { onSave: (d: Debt) => void }) {
   const [subject, setSubject] = useState('')
   const [teacher, setTeacher] = useState('')
   const [count, setCount] = useState('')
+  const [titles, setTitles] = useState('')
   const n = Math.max(0, Math.min(30, parseInt(count, 10) || 0))
+  const named = worksFromTitles(titles, uid())
   return (
     <form onSubmit={(e) => {
       e.preventDefault()
       if (!subject.trim()) return
       onSave({
         id: uid(), subject: subject.trim(), teacher: teacher.trim() || undefined,
-        closedManually: false, works: makeWorks(n, uid()),
+        closedManually: false, works: named.length ? named : makeWorks(n, uid()),
       })
     }}>
       <div className="group" style={{ marginTop: '.75rem' }}>
         <input className="input" placeholder="Предмет" aria-label="Предмет" autoFocus value={subject} onChange={(e) => setSubject(e.target.value)} />
         <input className="input" placeholder="Преподаватель (необязательно)" aria-label="Преподаватель" value={teacher} onChange={(e) => setTeacher(e.target.value)} />
-        <input className="input" placeholder="Сколько работ" aria-label="Сколько работ" inputMode="numeric" value={count} onChange={(e) => setCount(e.target.value)} />
+        <textarea className="input" placeholder="Названия работ, по одному в строке" aria-label="Названия работ" value={titles} onChange={(e) => setTitles(e.target.value)} />
+        {named.length === 0 && <input className="input" placeholder="Или просто сколько работ" aria-label="Сколько работ" inputMode="numeric" value={count} onChange={(e) => setCount(e.target.value)} />}
       </div>
-      <p className="footnote">Число работ можно оставить пустым, если требования ещё не уточнены, и добавить потом.</p>
+      <p className="footnote">
+        {named.length ? `Будет работ: ${named.length}. Названия можно поменять потом.` : 'Можно оставить пустым, если требования ещё не уточнены, и добавить работы потом.'}
+      </p>
       <button type="submit" className="btn-primary press" style={{ marginTop: '1.25rem' }} disabled={!subject.trim()}>Добавить долг</button>
     </form>
   )
