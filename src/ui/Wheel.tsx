@@ -2,7 +2,7 @@
 // Колесо выбора как в iOS: значения крутятся по кругу, выбранное стоит по центру, остальные меркнут к краям.
 // Основа — обычная прокрутка с «примагничиванием» (scroll-snap): так работают и палец, и колесо мыши, и тачпад.
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import { tick } from '../platform/haptics'
+import { tick, unlockAudio } from '../platform/haptics'
 
 const ROWS = 5 // сколько строк видно
 const ROW_PX = 44 // высота строки в пикселях, не в rem: дробная высота (крупный шрифт на телефоне) накапливает сдвиг и строки уезжают от центра
@@ -91,7 +91,7 @@ export default function Wheel({ count, value, onChange, label }: Props) {
     <div className="wheel">
       <div ref={box} className="wheel-scroll" role="spinbutton" tabIndex={0} aria-label={label}
         aria-valuemin={0} aria-valuemax={count - 1} aria-valuenow={value} aria-valuetext={two(value)}
-        onScroll={onScroll}
+        onScroll={onScroll} onPointerDown={unlockAudio}
         onKeyDown={(e) => {
           if (e.key === 'ArrowUp') { e.preventDefault(); step(-1) }
           else if (e.key === 'ArrowDown') { e.preventDefault(); step(1) }

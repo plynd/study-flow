@@ -1,8 +1,9 @@
 // Путь: src/screens/DataScreen.tsx
 // Вкладка «Настройки»: уведомления, синхронизация и резервная копия (сохранить в файл и загрузить обратно).
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { applyBackup, currentBackup, previousBackup, restorePrevious } from '../data/backupIO'
 import { backupFileName, parseBackup, summarize, type Backup } from '../domain/backup'
+import { loadFeedback, saveFeedback, subscribeFeedback, tick, unlockAudio } from '../platform/haptics'
 import TimeField from '../ui/TimeField'
 import { loadNotify, saveNotify, sendTestNotification } from '../data/notifyApi'
 import { BEFORE_OPTIONS, type NotifySettings } from '../domain/notify'
@@ -62,6 +63,8 @@ export default function DataScreen({ active }: { active: boolean }) {
     setTesting(false)
     setTestMsg(r.ok ? { text: 'Отправлено. Загляни в чат с ботом.' } : { text: r.message, error: true })
   }
+
+  const fb = useSyncExternalStore(subscribeFeedback, loadFeedback)
 
   const sum = pending ? summarize(pending) : null
 
@@ -146,6 +149,24 @@ export default function DataScreen({ active }: { active: boolean }) {
       <p className="footnote">
         Файл копии — запасной способ не потерять данные и перенести их куда угодно.
       </p>
+
+      <h3 className="section-title">Выбор времени</h3>
+      <div className="group">
+        <label className="row">
+          <span className="row-main">
+            <span className="row-title">Вибрация</span>
+            <span className="row-sub">Щелчок при прокрутке барабанов на телефоне</span>
+          </span>
+          <input type="checkbox" role="switch" className="switch" checked={fb.haptic} onChange={(e) => { saveFeedback({ haptic: e.target.checked }); if (e.target.checked) tick() }} />
+        </label>
+        <label className="row">
+          <span className="row-main">
+            <span className="row-title">Звук</span>
+            <span className="row-sub">Тихий щелчок вместе с вибрацией; без звука на iPhone звука нет</span>
+          </span>
+          <input type="checkbox" role="switch" className="switch" checked={fb.sound} onChange={(e) => { saveFeedback({ sound: e.target.checked }); if (e.target.checked) { unlockAudio(); tick() } }} />
+        </label>
+      </div>
 
       <h3 className="section-title">Сохранить</h3>
       <div className="group">
