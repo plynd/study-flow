@@ -46,8 +46,9 @@ export default function TimeField({ value, onChange, label }: Props) {
         {fmtTime(value)}
       </button>
       {/* Окна выносим в body: у строк с эффектом стекла свой слой, и fixed внутри них считается от строки, а не от экрана */}
-      {open?.kind === 'sheet' && createPortal(
-        <Sheet open onClose={() => setOpen(null)} title={label}>
+      {/* Лист не убираем из дерева при закрытии: он сам плавно уезжает вниз и только потом исчезает */}
+      {createPortal(
+        <Sheet open={open?.kind === 'sheet'} onClose={() => setOpen(null)} title={label}>
           <div className="wheels">
             <span className="wheel-band" aria-hidden="true" />
             <Wheel count={24} value={h} label="Часы" onChange={(x) => onChange(x * 60 + m)} />

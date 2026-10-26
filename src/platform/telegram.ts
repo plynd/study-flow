@@ -9,6 +9,7 @@ interface TgWebApp {
   requestFullscreen?(): void
   exitFullscreen?(): void
   isFullscreen?: boolean
+  HapticFeedback?: { selectionChanged(): void }
   ready(): void
   expand(): void
   disableVerticalSwipes?(): void

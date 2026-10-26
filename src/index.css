@@ -159,13 +159,13 @@ button:disabled { opacity: .4; cursor: default; }
 /* Выбор времени: кнопка и лист с часами и минутами */
 .time-btn { font: inherit; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .01em; color: var(--accent-text); background: var(--fill); border: 0; border-radius: 99px; padding: .45rem 1rem; cursor: pointer; min-width: 5rem; }
 /* Колёса выбора времени, как в iOS */
-.wheels { position: relative; display: flex; justify-content: center; align-items: center; gap: .25rem; padding: 1.25rem 1rem 1.5rem; }
-.wheel-band { position: absolute; left: 1.5rem; right: 1.5rem; top: 50%; height: 2.75rem; transform: translateY(-50%); border-radius: 1rem; background: var(--fill); pointer-events: none; }
+.wheels { --row: 44px; position: relative; display: flex; justify-content: center; align-items: center; gap: .25rem; padding: 1.25rem 1rem; }
+.wheel-band { position: absolute; left: 1.5rem; right: 1.5rem; top: 50%; height: var(--row); transform: translateY(-50%); border-radius: 1rem; background: var(--fill); pointer-events: none; }
 .wheel { position: relative; width: 5.5rem; z-index: 1; -webkit-mask-image: linear-gradient(transparent, #000 28%, #000 72%, transparent); mask-image: linear-gradient(transparent, #000 28%, #000 72%, transparent); }
-.wheel-scroll { height: calc(2.75rem * var(--rows)); overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: contain; scrollbar-width: none; padding: calc(2.75rem * 2) 0; box-sizing: border-box; outline: none; touch-action: pan-y; }
+.wheel-scroll { height: calc(var(--row) * 5); overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: contain; scrollbar-width: none; padding: calc(var(--row) * 2) 0; box-sizing: border-box; outline: none; touch-action: pan-y; }
 .wheel-scroll::-webkit-scrollbar { display: none; }
 .wheel-scroll:focus-visible { border-radius: 1rem; box-shadow: 0 0 0 2px var(--accent); }
-.wheel-item { display: block; height: 2.75rem; line-height: 2.75rem; text-align: center; font-size: 1.5rem; font-weight: 500; font-variant-numeric: tabular-nums; scroll-snap-align: center; scroll-snap-stop: always; cursor: pointer; user-select: none; -webkit-user-select: none; will-change: transform, opacity; }
+.wheel-item { display: block; height: var(--row); line-height: var(--row); text-align: center; font-size: 1.5rem; font-weight: 500; font-variant-numeric: tabular-nums; scroll-snap-align: center; scroll-snap-stop: always; cursor: pointer; user-select: none; -webkit-user-select: none; will-change: transform, opacity; }
 .wheel-colon { font-size: 1.5rem; font-weight: 600; padding-bottom: .15rem; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .wheel-item { transform: none !important; } }
 
@@ -176,8 +176,9 @@ button:disabled { opacity: .4; cursor: default; }
 .tp-scrim { position: fixed; inset: 0; z-index: 59; background: var(--scrim); animation: fade .3s ease both; }
 .tp-scrim.out { animation: fade .26s ease reverse both; }
 .tp.out { animation: tp-out .26s var(--ease) both; pointer-events: none; }
-@keyframes tp-in { from { opacity: 0; transform: scale(.82); filter: blur(10px); } to { opacity: 1; transform: none; filter: none; } }
-@keyframes tp-out { from { opacity: 1; transform: none; filter: blur(0); } to { opacity: 0; transform: scale(.9); filter: blur(8px); } }
+/* без filter: в WebKit анимация фильтра на элементе с backdrop-filter может пропасть, и окно исчезало бы мгновенно */
+@keyframes tp-in { from { opacity: 0; transform: scale(.84); } to { opacity: 1; transform: none; } }
+@keyframes tp-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(.9); } }
 .row.sync-row { min-height: 5.4rem; } /* текст статуса меняется (сохраняю → синхронизировано), а высота нет: иначе страница прыгает */
 .tp-title { justify-self: start; margin: 0; font-size: .8125rem; font-weight: 600; letter-spacing: .02em; color: var(--text-2); }
 .tp-fields { display: flex; align-items: center; gap: .35rem; }
