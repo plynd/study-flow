@@ -10,6 +10,7 @@ interface TgWebApp {
   exitFullscreen?(): void
   isFullscreen?: boolean
   HapticFeedback?: { selectionChanged(): void }
+  onEvent?(event: string, cb: () => void): void
   ready(): void
   expand(): void
   disableVerticalSwipes?(): void
@@ -38,32 +39,54 @@ function paint(app: TgWebApp) {
 }
 
 // ——— Размер окна ———
-// Размер окна — свойство устройства (на телефоне нужен весь экран, на компьютере большое окно), поэтому хранится
+// Размер окна — свойство устройства (на телефоне нужен весь экран, на компьютере обычное окно), поэтому хранится
 // только здесь и не попадает ни в резервную копию, ни в синхронизацию.
-export type WindowSize = 'auto' | 'normal' | 'large' | 'full'
-export const WINDOW_SIZE_LABEL: Record<WindowSize, string> = { auto: 'Авто', normal: 'Обычное', large: 'Большое', full: 'Во весь экран' }
+// Приложение не может менять размер окна Telegram на компьютере (expand() там ничего не делает), поэтому выбор один:
+// обычное окно или весь экран. Если переключить полный экран кнопкой самого Telegram, приложение запоминает и это.
+export type WindowSize = 'auto' | 'normal' | 'full'
+export const WINDOW_SIZE_LABEL: Record<WindowSize, string> = { auto: 'Авто', normal: 'Обычное', full: 'Во весь экран' }
 const SIZE_KEY = 'window-size-v1'
+const sizeListeners = new Set<() => void>()
 
 export function loadWindowSize(): WindowSize {
   try {
     const v = localStorage.getItem(SIZE_KEY)
-    return v === 'normal' || v === 'large' || v === 'full' ? v : 'auto'
+    return v === 'normal' || v === 'full' ? v : 'auto' // старое «большое» больше не существует: считаем «авто»
   } catch { return 'auto' }
 }
 
 export function saveWindowSize(s: WindowSize) {
   try { localStorage.setItem(SIZE_KEY, s) } catch { /* хранилище недоступно: настройка не сохранится, это не страшно */ }
+  sizeListeners.forEach((l) => l())
 }
 
-/** Что значит «Авто» на этом устройстве: телефон и планшет — весь экран, компьютер — большое окно */
+/** Подписка на смену сохранённого размера (для экрана настроек) */
+export function subscribeWindowSize(cb: () => void) {
+  sizeListeners.add(cb)
+  return () => { sizeListeners.delete(cb) }
+}
+
+/** Что значит «Авто»: телефон и планшет — весь экран; на компьютере размер не трогаем — какой окно сделал Telegram или ты сам, потянув за край */
 export function autoWindowSize(app: Pick<TgWebApp, 'platform'>): Exclude<WindowSize, 'auto'> {
-  return app.platform === 'ios' || app.platform === 'android' ? 'full' : 'large'
+  return app.platform === 'ios' || app.platform === 'android' ? 'full' : 'normal'
 }
 
-/** Применить размер. Окно можно раскрыть и вернуть из полного экрана; обратно сжать раскрытое окно Telegram не даёт — до следующего открытия */
+/**
+ * Применить размер. Окно на компьютере приложение менять не умеет: expand() там ничего не делает, а размер окна задаёт сам Telegram.
+ * Поэтому доступно только «весь экран» и возврат из него.
+ */
+let ownChangeAt = 0 // когда приложение само меняло размер: события Telegram сразу после этого не считаем действием пользователя
+
+/** Пользователь переключил полный экран кнопкой самого Telegram — запоминаем его выбор */
+function rememberFullscreen(app: TgWebApp) {
+  if (Date.now() - ownChangeAt < 1500) return
+  saveWindowSize(app.isFullscreen ? 'full' : 'normal')
+}
+
 export function applyWindowSize(size: WindowSize) {
   const app = getTelegram()
   if (!app) return
+  ownChangeAt = Date.now()
   const want = size === 'auto' ? autoWindowSize(app) : size
   if (want === 'full') {
     if (app.isVersionAtLeast?.('8.0')) attempt(() => app.requestFullscreen?.())
@@ -71,7 +94,6 @@ export function applyWindowSize(size: WindowSize) {
     return
   }
   if (app.isFullscreen) attempt(() => app.exitFullscreen?.())
-  if (want === 'large') attempt(() => app.expand())
 }
 
 export function initTelegram() {
@@ -81,6 +103,7 @@ export function initTelegram() {
   attempt(() => app.ready())
   attempt(() => app.expand())
   applyWindowSize(loadWindowSize())
+  attempt(() => app.onEvent?.('fullscreenChanged', () => rememberFullscreen(app)))
   // Листы тянутся вниз пальцем; без этого Telegram принял бы такой жест за «свернуть приложение»
   attempt(() => app.disableVerticalSwipes?.())
 

@@ -6,7 +6,7 @@ describe('autoWindowSize', () => {
     expect(autoWindowSize({ platform: 'ios' })).toBe('full')
     expect(autoWindowSize({ platform: 'android' })).toBe('full')
   })
-  it('на компьютере и в вебе — большое окно', () => {
-    for (const platform of ['tdesktop', 'macos', 'weba', 'webk', 'unknown', undefined]) expect(autoWindowSize({ platform })).toBe('large')
+  it('на компьютере и в вебе — обычное окно', () => {
+    for (const platform of ['tdesktop', 'macos', 'weba', 'webk', 'unknown', undefined]) expect(autoWindowSize({ platform })).toBe('normal')
   })
 })
