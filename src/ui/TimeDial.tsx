@@ -77,8 +77,7 @@ export default function TimeDial({ mode, hour, minute, onPick }: Props) {
   }
 
   const drag = useRef(false)
-  const labelMinute = minute % 5 === 0
-  const thumbText = mode === 'h' ? two(hour) : labelMinute ? two(minute) : ''
+  const thumbText = two(mode === 'h' ? hour : minute) // кружок с числом всегда, даже для минут не кратных 5
 
   return (
     <div className="dial" style={{ width: SIZE, height: SIZE }} role="group" aria-label={mode === 'h' ? 'Выбор часа' : 'Выбор минут'}
@@ -88,7 +87,7 @@ export default function TimeDial({ mode, hour, minute, onPick }: Props) {
       onPointerCancel={() => { drag.current = false }}>
       <span className="dial-dot" aria-hidden="true" />
       <span ref={line} className="dial-line" aria-hidden="true" />
-      <span ref={thumb} className={`dial-thumb${thumbText ? '' : ' tiny'}`} aria-hidden="true">{thumbText}</span>
+      <span ref={thumb} className="dial-thumb" aria-hidden="true">{thumbText}</span>
 
       <div className={`dial-labels${mode === 'h' ? ' on' : ''}`} aria-hidden="true">
         {Array.from({ length: 24 }, (_, h) => {

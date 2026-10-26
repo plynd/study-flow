@@ -191,7 +191,6 @@ button:disabled { opacity: .4; cursor: default; }
 .dial-thumb { position: absolute; left: 0; top: 0; width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center; pointer-events: none; z-index: 2;
   color: #fff; font-size: .9375rem; font-weight: 600; font-variant-numeric: tabular-nums; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent));
   box-shadow: inset 1px 1px 0 rgba(255, 255, 255, .5), 0 4px 12px color-mix(in srgb, var(--accent) 45%, transparent); transition: width .3s var(--ease), height .3s var(--ease); }
-.dial-thumb.tiny { width: .5rem; height: .5rem; box-shadow: none; }
 .dial-labels { position: absolute; inset: 0; opacity: 0; transform: scale(.9); filter: blur(4px); pointer-events: none; transition: opacity .35s var(--ease), transform .5s var(--ease), filter .35s var(--ease); }
 .dial-labels.on { opacity: 1; transform: none; filter: none; }
 .dial-labels span { position: absolute; transform: translate(-50%, -50%); font-size: 1rem; font-variant-numeric: tabular-nums; color: var(--text); }
