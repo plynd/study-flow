@@ -1,8 +1,9 @@
 // Путь: src/screens/DataScreen.tsx
-// Вкладка «Данные»: синхронизация и резервная копия (сохранить в файл и загрузить обратно).
+// Вкладка «Настройки»: размер окна, уведомления, синхронизация и резервная копия (сохранить в файл и загрузить обратно).
 import { useState } from 'react'
 import { applyBackup, currentBackup, previousBackup, restorePrevious } from '../data/backupIO'
 import { backupFileName, parseBackup, summarize, type Backup } from '../domain/backup'
+import { applyWindowSize, getTelegram, loadWindowSize, saveWindowSize, WINDOW_SIZE_LABEL, type WindowSize } from '../platform/telegram'
 import TimeField from '../ui/TimeField'
 import { loadNotify, saveNotify, sendTestNotification } from '../data/notifyApi'
 import { BEFORE_OPTIONS, type NotifySettings } from '../domain/notify'
@@ -63,16 +64,38 @@ export default function DataScreen({ active }: { active: boolean }) {
     setTestMsg(r.ok ? { text: 'Отправлено. Загляни в чат с ботом.' } : { text: r.message, error: true })
   }
 
+  const inTelegram = !!getTelegram()
+  const [size, setSize] = useState<WindowSize>(loadWindowSize)
+  const pickSize = (s: WindowSize) => { setSize(s); saveWindowSize(s); applyWindowSize(s) }
+
   const sum = pending ? summarize(pending) : null
 
   return (
     <main>
       <header className="navbar">
-        <h1 className="large-title">Данные</h1>
+        <h1 className="large-title">Настройки</h1>
       </header>
-      <p className="caption subtitle">Синхронизация и резервная копия</p>
+      <p className="caption subtitle">Окно, уведомления, синхронизация и копия</p>
 
       <div className="data-wrap">
+      {inTelegram && (
+        <>
+          <h3 className="section-title">Окно</h3>
+          <div className="group">
+            <label className="row">
+              <span className="row-main">
+                <span className="row-title">Размер окна</span>
+                <span className="row-sub">{size === 'auto' ? 'Телефон и планшет — весь экран, компьютер — большое окно' : 'Только на этом устройстве'}</span>
+              </span>
+              <select className="input boxed" style={{ width: 'auto' }} value={size} onChange={(e) => pickSize(e.target.value as WindowSize)}>
+                {(Object.keys(WINDOW_SIZE_LABEL) as WindowSize[]).map((s) => <option key={s} value={s}>{WINDOW_SIZE_LABEL[s]}</option>)}
+              </select>
+            </label>
+          </div>
+          {size === 'normal' && <p className="footnote">Раскрытое окно Telegram обратно не сжимает: обычный размер вернётся, когда откроешь приложение заново.</p>}
+        </>
+      )}
+
       <h3 className="section-title">Синхронизация</h3>
       <div className="group">
         <div className="row">

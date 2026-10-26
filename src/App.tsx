@@ -5,7 +5,7 @@ import ScheduleScreen from './screens/ScheduleScreen'
 import NotesScreen from './screens/NotesScreen'
 import DataScreen from './screens/DataScreen'
 import { useSyncState } from './data/syncEngine'
-import { IconCalendar, IconData, IconDebts, IconNotes } from './ui/icons'
+import { IconCalendar, IconSettings, IconDebts, IconNotes } from './ui/icons'
 import './index.css'
 
 type Tab = 'debts' | 'schedule' | 'notes' | 'data'
@@ -13,7 +13,7 @@ const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: 'debts', label: 'Долги', icon: <IconDebts /> },
   { id: 'schedule', label: 'Расписание', icon: <IconCalendar /> },
   { id: 'notes', label: 'Заметки', icon: <IconNotes /> },
-  { id: 'data', label: 'Данные', icon: <IconData /> },
+  { id: 'data', label: 'Настройки', icon: <IconSettings /> },
 ]
 
 export default function App() {

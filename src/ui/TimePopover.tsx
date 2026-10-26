@@ -72,7 +72,7 @@ export default function TimePopover({ value, onChange, onDone, label, pos }: Pro
     return (
       <input ref={f === 'h' ? hRef : mRef} className={`tp-num${mode === f ? ' on' : ''}`} inputMode="numeric" autoComplete="off"
         aria-label={f === 'h' ? 'Часы' : 'Минуты'} value={edit?.f === f ? edit.text : two(v)}
-        onFocus={(e) => { setMode(f); setEdit(null); const t = e.currentTarget; requestAnimationFrame(() => t.select()) }}
+        onFocus={() => { setMode(f); setEdit(null) }}
         onBlur={() => setEdit(null)}
         onChange={(e) => typed(f, e.target.value)}
         onKeyDown={(e) => {
@@ -83,7 +83,6 @@ export default function TimePopover({ value, onChange, onDone, label, pos }: Pro
             const nv = (v + (e.key === 'ArrowUp' ? 1 : -1) + max + 1) % (max + 1)
             if (f === 'h') setH(nv); else setM(nv)
             setEdit(null)
-            requestAnimationFrame(() => e.currentTarget.select())
           } else if (e.key === 'Backspace' && f === 'm' && edit?.text === '') { e.preventDefault(); hRef.current?.focus() }
           else if (e.key === ':' || (e.key === 'ArrowRight' && f === 'h')) { e.preventDefault(); mRef.current?.focus() }
           else if (e.key === 'ArrowLeft' && f === 'm') { e.preventDefault(); hRef.current?.focus() }
