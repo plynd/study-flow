@@ -6,7 +6,7 @@ import TimeDial, { type DialMode } from './TimeDial'
 
 const two = (n: number) => String(n).padStart(2, '0')
 export const POP_W = 288
-export const POP_H = 404
+export const POP_H = 440
 
 interface Props {
   value: number
@@ -14,8 +14,8 @@ interface Props {
   /** окно закрылось (после анимации) */
   onDone: () => void
   label: string
-  /** где показать: левый верх и откуда «вырастает» окно */
-  pos: { left: number; top: number; origin: string }
+  /** где показать: левый верх и откуда «вырастает» окно; modal — по центру с затемнением (узкое окно) */
+  pos: { left: number; top: number; origin: string; modal?: boolean }
 }
 
 export default function TimePopover({ value, onChange, onDone, label, pos }: Props) {
@@ -94,6 +94,8 @@ export default function TimePopover({ value, onChange, onDone, label, pos }: Pro
   }
 
   return (
+    <>
+    {pos.modal && <div className={`tp-scrim${closing ? ' out' : ''}`} aria-hidden="true" />}
     <div ref={root} className={`tp${closing ? ' out' : ''}`} role="dialog" aria-label={label}
       style={{ left: pos.left, top: pos.top, width: POP_W, transformOrigin: pos.origin }}>
       <p className="tp-title">{label}</p>
@@ -109,5 +111,6 @@ export default function TimePopover({ value, onChange, onDone, label, pos }: Pro
         }} />
       <button type="button" className="tp-done press" onClick={close}>Готово</button>
     </div>
+    </>
   )
 }

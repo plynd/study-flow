@@ -173,9 +173,12 @@ button:disabled { opacity: .4; cursor: default; }
 .tp { position: fixed; z-index: 60; padding: 1.1rem 1.1rem 1rem; border-radius: 1.75rem; display: grid; justify-items: center; gap: .9rem;
   background: var(--glass-thick); -webkit-backdrop-filter: var(--blur-thick); backdrop-filter: var(--blur-thick); box-shadow: var(--glass-edge), var(--glass-shadow), 0 24px 60px rgba(20, 30, 60, .22);
   animation: tp-in .5s cubic-bezier(.2, 1.1, .3, 1) backwards; }
+.tp-scrim { position: fixed; inset: 0; z-index: 59; background: var(--scrim); animation: fade .3s ease both; }
+.tp-scrim.out { animation: fade .26s ease reverse both; }
 .tp.out { animation: tp-out .26s var(--ease) both; pointer-events: none; }
 @keyframes tp-in { from { opacity: 0; transform: scale(.82); filter: blur(10px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes tp-out { from { opacity: 1; transform: none; filter: blur(0); } to { opacity: 0; transform: scale(.9); filter: blur(8px); } }
+.row.sync-row { min-height: 5.4rem; } /* текст статуса меняется (сохраняю → синхронизировано), а высота нет: иначе страница прыгает */
 .tp-title { justify-self: start; margin: 0; font-size: .8125rem; font-weight: 600; letter-spacing: .02em; color: var(--text-2); }
 .tp-fields { display: flex; align-items: center; gap: .35rem; }
 .tp-num { width: 5.4rem; height: 4rem; text-align: center; font: inherit; font-size: 2.5rem; line-height: 1; padding: 0; box-sizing: border-box; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text); background: var(--fill); border: 0; border-radius: 1.1rem; outline: none; caret-color: transparent;
@@ -321,6 +324,7 @@ button.row:active, label.row:active, summary.row:active { background: var(--fill
 .row-sub { font-size: .875rem; color: var(--text-2); line-height: 1.3; letter-spacing: .005em; }
 .row .trail { color: var(--text-2); font-size: .9375rem; display: flex; align-items: center; gap: .25rem; font-variant-numeric: tabular-nums; }
 .row .chev { color: var(--text-3); }
+.row:disabled { opacity: .45; cursor: default; }
 .row.accent .row-title { color: var(--accent-text); }
 .row.danger .row-title { color: var(--danger-text); }
 .row input[type=file] { display: none; }
