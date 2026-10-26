@@ -172,16 +172,15 @@ button:disabled { opacity: .4; cursor: default; }
 /* Окно выбора времени на компьютере: стекло, поле ввода и циферблат */
 .tp { position: fixed; z-index: 60; padding: 1.1rem 1.1rem 1rem; border-radius: 1.75rem; display: grid; justify-items: center; gap: .9rem;
   background: var(--glass-thick); -webkit-backdrop-filter: var(--blur-thick); backdrop-filter: var(--blur-thick); box-shadow: var(--glass-edge), var(--glass-shadow), 0 24px 60px rgba(20, 30, 60, .22);
-  animation: tp-in .5s cubic-bezier(.2, 1.1, .3, 1) both; }
+  animation: tp-in .5s cubic-bezier(.2, 1.1, .3, 1) backwards; }
 .tp.out { animation: tp-out .26s var(--ease) both; pointer-events: none; }
-@keyframes tp-in { from { opacity: 0; transform: scale(.82); filter: blur(10px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes tp-in { from { opacity: 0; transform: scale(.82); filter: blur(10px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes tp-out { from { opacity: 1; transform: none; filter: blur(0); } to { opacity: 0; transform: scale(.9); filter: blur(8px); } }
 .tp-title { justify-self: start; margin: 0; font-size: .8125rem; font-weight: 600; letter-spacing: .02em; color: var(--text-2); }
 .tp-fields { display: flex; align-items: center; gap: .35rem; }
-.tp-num { width: 5.4rem; height: 4rem; text-align: center; font: inherit; font-size: 2.5rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text); background: var(--fill); border: 0; border-radius: 1.1rem; outline: none; caret-color: transparent;
-  transition: background .35s var(--ease), color .25s, box-shadow .35s var(--ease), transform .45s var(--ease); }
-.tp-num.on { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent-text); box-shadow: inset 0 0 0 2px var(--accent); transform: scale(1.03); }
-.tp-num::selection { background: transparent; }
+.tp-num { width: 5.4rem; height: 4rem; text-align: center; font: inherit; font-size: 2.5rem; line-height: 1; padding: 0; box-sizing: border-box; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text); background: var(--fill); border: 0; border-radius: 1.1rem; outline: none; caret-color: transparent;
+  transition: background .35s var(--ease), color .25s, box-shadow .35s var(--ease); }
+.tp-num.on { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent-text); box-shadow: inset 0 0 0 2px var(--accent); }
 .tp-colon { font-size: 2.25rem; font-weight: 600; color: var(--text-2); }
 .dial { position: relative; border-radius: 50%; background: var(--fill); touch-action: none; cursor: pointer; user-select: none; -webkit-user-select: none; box-shadow: inset 0 0 0 .5px var(--sep); }
 .dial-dot { position: absolute; left: 50%; top: 50%; width: .5rem; height: .5rem; border-radius: 50%; background: var(--accent); transform: translate(-50%, -50%); }
