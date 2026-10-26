@@ -1,9 +1,9 @@
 // Путь: src/screens/DataScreen.tsx
 // Вкладка «Настройки»: размер окна, уведомления, синхронизация и резервная копия (сохранить в файл и загрузить обратно).
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { applyBackup, currentBackup, previousBackup, restorePrevious } from '../data/backupIO'
 import { backupFileName, parseBackup, summarize, type Backup } from '../domain/backup'
-import { applyWindowSize, getTelegram, loadWindowSize, saveWindowSize, WINDOW_SIZE_LABEL, type WindowSize } from '../platform/telegram'
+import { applyWindowSize, getTelegram, loadWindowSize, saveWindowSize, subscribeWindowSize, WINDOW_SIZE_LABEL, type WindowSize } from '../platform/telegram'
 import TimeField from '../ui/TimeField'
 import { loadNotify, saveNotify, sendTestNotification } from '../data/notifyApi'
 import { BEFORE_OPTIONS, type NotifySettings } from '../domain/notify'
@@ -65,8 +65,9 @@ export default function DataScreen({ active }: { active: boolean }) {
   }
 
   const inTelegram = !!getTelegram()
-  const [size, setSize] = useState<WindowSize>(loadWindowSize)
-  const pickSize = (s: WindowSize) => { setSize(s); saveWindowSize(s); applyWindowSize(s) }
+  const size = useSyncExternalStore(subscribeWindowSize, loadWindowSize)
+  const pickSize = (s: WindowSize) => { saveWindowSize(s); applyWindowSize(s) }
+  const desktop = !['ios', 'android'].includes(getTelegram()?.platform ?? '')
 
   const sum = pending ? summarize(pending) : null
 
@@ -85,14 +86,14 @@ export default function DataScreen({ active }: { active: boolean }) {
             <label className="row">
               <span className="row-main">
                 <span className="row-title">Размер окна</span>
-                <span className="row-sub">{size === 'auto' ? 'Телефон и планшет — весь экран, компьютер — большое окно' : 'Только на этом устройстве'}</span>
+                <span className="row-sub">{size === 'auto' ? 'Телефон и планшет — весь экран, компьютер — обычное окно' : 'Только на этом устройстве'}</span>
               </span>
               <select className="input boxed" style={{ width: 'auto' }} value={size} onChange={(e) => pickSize(e.target.value as WindowSize)}>
                 {(Object.keys(WINDOW_SIZE_LABEL) as WindowSize[]).map((s) => <option key={s} value={s}>{WINDOW_SIZE_LABEL[s]}</option>)}
               </select>
             </label>
           </div>
-          {size === 'normal' && <p className="footnote">Раскрытое окно Telegram обратно не сжимает: обычный размер вернётся, когда откроешь приложение заново.</p>}
+          {desktop && <p className="footnote">Telegram не даёт приложению менять размер окна на компьютере. Запоминается режим «во весь экран»: и выбранный здесь, и включённый кнопкой самого Telegram.</p>}
         </>
       )}
 
