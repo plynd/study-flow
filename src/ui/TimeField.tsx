@@ -18,7 +18,7 @@ interface Props {
   label: string
 }
 
-type Opened = { kind: 'sheet' } | { kind: 'pop'; left: number; top: number; origin: string } | null
+type Opened = { kind: 'sheet' } | { kind: 'pop'; left: number; top: number; origin: string; modal?: boolean } | null
 
 export default function TimeField({ value, onChange, label }: Props) {
   const [open, setOpen] = useState<Opened>(null)
@@ -28,10 +28,16 @@ export default function TimeField({ value, onChange, label }: Props) {
   const show = () => {
     const r = btn.current?.getBoundingClientRect()
     if (!r || !matchMedia('(hover: hover) and (pointer: fine)').matches) { setOpen({ kind: 'sheet' }); return }
-    const left = Math.max(8, Math.min(innerWidth - POP_W - 8, r.right - POP_W))
-    const below = r.bottom + 8 + POP_H <= innerHeight - 8
-    const top = below ? r.bottom + 8 : Math.max(8, r.top - 8 - POP_H)
-    setOpen({ kind: 'pop', left, top, origin: `${Math.round(r.right - left - r.width / 2)}px ${below ? 'top' : 'bottom'}` })
+    const vw = innerWidth, vh = innerHeight
+    const mid = (n: number, size: number) => Math.max(8, Math.round((n - size) / 2))
+    // Узкое окно (телефонный размер в Telegram на компьютере): рядом с кнопкой места нет, показываем по центру с затемнением
+    if (vw < 640 || vh < POP_H + 16) { setOpen({ kind: 'pop', left: mid(vw, POP_W), top: mid(vh, POP_H), origin: '50% 50%', modal: true }); return }
+    const left = Math.max(8, Math.min(vw - POP_W - 8, r.right - POP_W))
+    const below = r.bottom + 8 + POP_H <= vh - 8
+    const above = r.top - 8 - POP_H >= 8
+    // не помещается ни снизу, ни сверху — по центру по высоте, рядом с кнопкой по горизонтали
+    const top = below ? r.bottom + 8 : above ? r.top - 8 - POP_H : mid(vh, POP_H)
+    setOpen({ kind: 'pop', left, top, origin: `${Math.round(r.right - left - r.width / 2)}px ${below ? 'top' : above ? 'bottom' : 'center'}` })
   }
 
   return (

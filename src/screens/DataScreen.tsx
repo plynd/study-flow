@@ -98,14 +98,14 @@ export default function DataScreen({ active }: { active: boolean }) {
 
       <h3 className="section-title">Синхронизация</h3>
       <div className="group">
-        <div className="row">
+        <div className="row sync-row">
           <span className="row-main">
             <span className="row-title">{syncTitle(sync.status)}</span>
             <span className="row-sub">{syncSub(sync.status, sync.at, sync.message)}</span>
           </span>
         </div>
-        {(sync.status === 'synced' || sync.status === 'offline' || sync.status === 'error') && (
-          <button className="row accent" onClick={() => { void retrySync() }}><span className="row-title">Синхронизировать сейчас</span></button>
+        {sync.status !== 'off' && (
+          <button className="row accent" disabled={sync.status === 'saving' || sync.status === 'connecting'} onClick={() => { void retrySync() }}><span className="row-title">Синхронизировать сейчас</span></button>
         )}
       </div>
       {stash && (
