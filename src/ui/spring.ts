@@ -4,8 +4,6 @@
 
 export interface SpringSpec { response: number; damping: number }
 
-/** Обычное движение: без отскока */
-export const SPRING_SMOOTH: SpringSpec = { response: 0.4, damping: 1 }
 /** Лист: появление и закрытие */
 export const SPRING_SHEET: SpringSpec = { response: 0.38, damping: 1 }
 /** Возврат после броска: отскок оправдан, потому что жест нёс импульс */

@@ -19,12 +19,6 @@ export interface Debt {
 
 export type DebtStatus = 'clarify' | 'in_progress' | 'closed'
 
-export const STATUS_LABEL: Record<DebtStatus, string> = {
-  clarify: 'Уточнить требования',
-  in_progress: 'В работе',
-  closed: 'Закрыт',
-}
-
 export function debtStatus(debt: Debt): DebtStatus {
   if (debt.closedManually) return 'closed'
   if (debt.works.length === 0) return 'clarify'

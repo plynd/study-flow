@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { applyBackup, currentBackup, previousBackup, restorePrevious } from '../data/backupIO'
 import { backupFileName, parseBackup, summarize, type Backup } from '../domain/backup'
+import TimeField from '../ui/TimeField'
 import { loadNotify, saveNotify, sendTestNotification } from '../data/notifyApi'
 import { BEFORE_OPTIONS, type NotifySettings } from '../domain/notify'
 import { clearStash, retrySync, stashedBackup, useSyncState } from '../data/syncEngine'
@@ -54,11 +55,6 @@ export default function DataScreen({ active }: { active: boolean }) {
   }
 
   const patchNt = (p: Partial<NotifySettings>) => { const next = { ...nt, ...p }; setNt(next); saveNotify(next) }
-  const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
-  const setTime = (field: 'morningAt' | 'eveningAt', v: string) => {
-    const [h, m] = v.split(':').map(Number)
-    if (Number.isFinite(h) && Number.isFinite(m)) patchNt({ [field]: h * 60 + m })
-  }
 
   async function test() {
     setTesting(true); setTestMsg(null)
@@ -113,7 +109,7 @@ export default function DataScreen({ active }: { active: boolean }) {
         {nt.morning && (
           <label className="row">
             <span className="row-main"><span className="row-title">Время утреннего</span></span>
-            <input type="time" className="input boxed" style={{ width: 'auto' }} value={hhmm(nt.morningAt)} onChange={(e) => setTime('morningAt', e.target.value)} />
+            <TimeField label="Время утреннего" value={nt.morningAt} onChange={(v) => patchNt({ morningAt: v })} />
           </label>
         )}
         <label className="row">
@@ -126,7 +122,7 @@ export default function DataScreen({ active }: { active: boolean }) {
         {nt.evening && (
           <label className="row">
             <span className="row-main"><span className="row-title">Время вечернего</span></span>
-            <input type="time" className="input boxed" style={{ width: 'auto' }} value={hhmm(nt.eveningAt)} onChange={(e) => setTime('eveningAt', e.target.value)} />
+            <TimeField label="Время вечернего" value={nt.eveningAt} onChange={(v) => patchNt({ eveningAt: v })} />
           </label>
         )}
         <label className="row">

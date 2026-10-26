@@ -156,6 +156,51 @@ button:disabled { opacity: .4; cursor: default; }
 
 /* ——— Типографика ——— */
 .large-title { font-size: 2.125rem; line-height: 1.1; font-weight: 700; letter-spacing: -.026em; }
+/* Выбор времени: кнопка и лист с часами и минутами */
+.time-btn { font: inherit; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .01em; color: var(--accent-text); background: var(--fill); border: 0; border-radius: 99px; padding: .45rem 1rem; cursor: pointer; min-width: 5rem; }
+/* Колёса выбора времени, как в iOS */
+.wheels { position: relative; display: flex; justify-content: center; align-items: center; gap: .25rem; padding: 1.25rem 1rem 1.5rem; }
+.wheel-band { position: absolute; left: 1.5rem; right: 1.5rem; top: 50%; height: 2.75rem; transform: translateY(-50%); border-radius: 1rem; background: var(--fill); pointer-events: none; }
+.wheel { position: relative; width: 5.5rem; z-index: 1; -webkit-mask-image: linear-gradient(transparent, #000 28%, #000 72%, transparent); mask-image: linear-gradient(transparent, #000 28%, #000 72%, transparent); }
+.wheel-scroll { height: calc(2.75rem * var(--rows)); overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: contain; scrollbar-width: none; padding: calc(2.75rem * 2) 0; box-sizing: border-box; outline: none; touch-action: pan-y; }
+.wheel-scroll::-webkit-scrollbar { display: none; }
+.wheel-scroll:focus-visible { border-radius: 1rem; box-shadow: 0 0 0 2px var(--accent); }
+.wheel-item { display: block; height: 2.75rem; line-height: 2.75rem; text-align: center; font-size: 1.5rem; font-weight: 500; font-variant-numeric: tabular-nums; scroll-snap-align: center; scroll-snap-stop: always; cursor: pointer; user-select: none; -webkit-user-select: none; will-change: transform, opacity; }
+.wheel-colon { font-size: 1.5rem; font-weight: 600; padding-bottom: .15rem; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .wheel-item { transform: none !important; } }
+
+/* Окно выбора времени на компьютере: стекло, поле ввода и циферблат */
+.tp { position: fixed; z-index: 60; padding: 1.1rem 1.1rem 1rem; border-radius: 1.75rem; display: grid; justify-items: center; gap: .9rem;
+  background: var(--glass-thick); -webkit-backdrop-filter: var(--blur-thick); backdrop-filter: var(--blur-thick); box-shadow: var(--glass-edge), var(--glass-shadow), 0 24px 60px rgba(20, 30, 60, .22);
+  animation: tp-in .5s cubic-bezier(.2, 1.1, .3, 1) both; }
+.tp.out { animation: tp-out .26s var(--ease) both; pointer-events: none; }
+@keyframes tp-in { from { opacity: 0; transform: scale(.82); filter: blur(10px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes tp-out { from { opacity: 1; transform: none; filter: blur(0); } to { opacity: 0; transform: scale(.9); filter: blur(8px); } }
+.tp-title { justify-self: start; margin: 0; font-size: .8125rem; font-weight: 600; letter-spacing: .02em; color: var(--text-2); }
+.tp-fields { display: flex; align-items: center; gap: .35rem; }
+.tp-num { width: 5.4rem; height: 4rem; text-align: center; font: inherit; font-size: 2.5rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text); background: var(--fill); border: 0; border-radius: 1.1rem; outline: none; caret-color: transparent;
+  transition: background .35s var(--ease), color .25s, box-shadow .35s var(--ease), transform .45s var(--ease); }
+.tp-num.on { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent-text); box-shadow: inset 0 0 0 2px var(--accent); transform: scale(1.03); }
+.tp-num::selection { background: transparent; }
+.tp-colon { font-size: 2.25rem; font-weight: 600; color: var(--text-2); }
+.dial { position: relative; border-radius: 50%; background: var(--fill); touch-action: none; cursor: pointer; user-select: none; -webkit-user-select: none; box-shadow: inset 0 0 0 .5px var(--sep); }
+.dial-dot { position: absolute; left: 50%; top: 50%; width: .5rem; height: .5rem; border-radius: 50%; background: var(--accent); transform: translate(-50%, -50%); }
+.dial-line { position: absolute; left: 50%; top: 50%; height: 2px; transform-origin: 0 50%; background: var(--accent); border-radius: 2px; pointer-events: none; }
+.dial-thumb { position: absolute; left: 0; top: 0; width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center; pointer-events: none; z-index: 2;
+  color: #fff; font-size: .9375rem; font-weight: 600; font-variant-numeric: tabular-nums; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent));
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, .5), 0 4px 12px color-mix(in srgb, var(--accent) 45%, transparent); transition: width .3s var(--ease), height .3s var(--ease); }
+.dial-thumb.tiny { width: .5rem; height: .5rem; box-shadow: none; }
+.dial-labels { position: absolute; inset: 0; opacity: 0; transform: scale(.9); filter: blur(4px); pointer-events: none; transition: opacity .35s var(--ease), transform .5s var(--ease), filter .35s var(--ease); }
+.dial-labels.on { opacity: 1; transform: none; filter: none; }
+.dial-labels span { position: absolute; transform: translate(-50%, -50%); font-size: 1rem; font-variant-numeric: tabular-nums; color: var(--text); }
+.dial-labels span.in { font-size: .8125rem; color: var(--text-2); }
+.tp-done { justify-self: end; font: inherit; font-weight: 600; font-size: .9375rem; color: var(--accent-text); background: var(--glass-hi); border: 0; border-radius: 99px; padding: .5rem 1.2rem; cursor: pointer; box-shadow: inset 1px 1px 0 rgba(255, 255, 255, .6), 0 0 0 .5px rgba(30, 40, 70, .08); }
+@media (prefers-reduced-motion: reduce) {
+  .tp { animation: fade .15s ease both; } .tp.out { animation: fade .12s ease reverse both; }
+  .dial-labels { transform: none; filter: none; }
+}
+@media (prefers-reduced-transparency: reduce) { .tp { -webkit-backdrop-filter: none; backdrop-filter: none; } }
+
 /* Текст, который можно выделить и скопировать (на телефоне зажатием) */
 .selectable { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 .headline { font-size: 1.0625rem; line-height: 1.3; font-weight: 600; letter-spacing: -.014em; }
