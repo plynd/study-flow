@@ -32,10 +32,13 @@ export default function TimePopover({ value, onChange, onDone, label, pos }: Pro
     setClosing(true)
     setTimeout(onDone, matchMedia('(prefers-reduced-motion: reduce)').matches ? 120 : 260)
   }
+  // preventScroll: иначе WebKit (Safari, Telegram на Mac и iOS) прокручивает страницу под окном, и всё «прыгает» при переходе между полями
+  const focusH = () => hRef.current?.focus({ preventScroll: true })
+  const focusM = () => mRef.current?.focus({ preventScroll: true })
   const closeRef = useRef(close)
   useEffect(() => { closeRef.current = close })
 
-  useEffect(() => { hRef.current?.focus() }, [])
+  useEffect(() => { hRef.current?.focus({ preventScroll: true }) }, [])
   useEffect(() => {
     const down = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) closeRef.current() }
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); closeRef.current() } }
@@ -61,7 +64,7 @@ export default function TimePopover({ value, onChange, onDone, label, pos }: Pro
     if (d === '') { setEdit({ f, text: '' }); return }
     const n = +d
     if (f === 'h') {
-      if (d.length === 2 || n > 2) { setH(Math.min(23, n)); setEdit(null); mRef.current?.focus() } // часы набраны — сразу минуты
+      if (d.length === 2 || n > 2) { setH(Math.min(23, n)); setEdit(null); focusM() } // часы набраны — сразу минуты
       else { setH(n); setEdit({ f, text: d }) }
     } else if (d.length === 2 || n > 5) { setM(Math.min(59, n)); setEdit(null) }
     else { setM(n); setEdit({ f, text: d }) }
@@ -83,9 +86,9 @@ export default function TimePopover({ value, onChange, onDone, label, pos }: Pro
             const nv = (v + (e.key === 'ArrowUp' ? 1 : -1) + max + 1) % (max + 1)
             if (f === 'h') setH(nv); else setM(nv)
             setEdit(null)
-          } else if (e.key === 'Backspace' && f === 'm' && edit?.text === '') { e.preventDefault(); hRef.current?.focus() }
-          else if (e.key === ':' || (e.key === 'ArrowRight' && f === 'h')) { e.preventDefault(); mRef.current?.focus() }
-          else if (e.key === 'ArrowLeft' && f === 'm') { e.preventDefault(); hRef.current?.focus() }
+          } else if (e.key === 'Backspace' && f === 'm' && edit?.text === '') { e.preventDefault(); focusH() }
+          else if (e.key === ':' || (e.key === 'ArrowRight' && f === 'h')) { e.preventDefault(); focusM() }
+          else if (e.key === 'ArrowLeft' && f === 'm') { e.preventDefault(); focusH() }
         }} />
     )
   }
@@ -102,7 +105,7 @@ export default function TimePopover({ value, onChange, onDone, label, pos }: Pro
       <TimeDial mode={mode} hour={h} minute={m}
         onPick={(md, v, final) => {
           if (md === 'h') setH(v); else setM(v)
-          if (final && md === 'h') mRef.current?.focus() // час выбран — переходим к минутам
+          if (final && md === 'h') focusM() // час выбран — переходим к минутам
         }} />
       <button type="button" className="tp-done press" onClick={close}>Готово</button>
     </div>

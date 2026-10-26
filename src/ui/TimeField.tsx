@@ -52,7 +52,7 @@ export default function TimeField({ value, onChange, label }: Props) {
         document.body)}
       {open?.kind === 'pop' && createPortal(
         <TimePopover value={value} onChange={onChange} label={label} pos={open}
-          onDone={() => { setOpen(null); btn.current?.focus() }} />,
+          onDone={() => { setOpen(null); btn.current?.focus({ preventScroll: true }) }} />,
         document.body)}
     </>
   )
