@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore } from 'react'
 import { applyBackup, currentBackup, previousBackup, restorePrevious } from '../data/backupIO'
 import { backupFileName, parseBackup, summarize, type Backup } from '../domain/backup'
-import { loadFeedback, saveFeedback, subscribeFeedback, tick, unlockAudio } from '../platform/haptics'
+import { loadFeedback, saveFeedback, subscribeFeedback, tick } from '../platform/haptics'
 import TimeField from '../ui/TimeField'
 import { loadNotify, saveNotify, sendTestNotification } from '../data/notifyApi'
 import { BEFORE_OPTIONS, type NotifySettings } from '../domain/notify'
@@ -150,21 +150,14 @@ export default function DataScreen({ active }: { active: boolean }) {
         Файл копии — запасной способ не потерять данные и перенести их куда угодно.
       </p>
 
-      <h3 className="section-title">Выбор времени</h3>
+      <h3 className="section-title">Вибрация</h3>
       <div className="group">
         <label className="row">
           <span className="row-main">
-            <span className="row-title">Вибрация</span>
-            <span className="row-sub">Щелчок при прокрутке барабанов на телефоне</span>
+            <span className="row-title">Вибрация при выборе</span>
+            <span className="row-sub">Щелчок на барабанах времени и переключателях, не на обычных кнопках</span>
           </span>
           <input type="checkbox" role="switch" className="switch" checked={fb.haptic} onChange={(e) => { saveFeedback({ haptic: e.target.checked }); if (e.target.checked) tick() }} />
-        </label>
-        <label className="row">
-          <span className="row-main">
-            <span className="row-title">Звук</span>
-            <span className="row-sub">Тихий щелчок вместе с вибрацией; без звука на iPhone звука нет</span>
-          </span>
-          <input type="checkbox" role="switch" className="switch" checked={fb.sound} onChange={(e) => { saveFeedback({ sound: e.target.checked }); if (e.target.checked) { unlockAudio(); tick() } }} />
         </label>
       </div>
 
