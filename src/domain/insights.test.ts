@@ -83,6 +83,11 @@ describe('где застать преподавателя для долга', (
     expect(debtMeetings([closed, debt('X', undefined), debt('Y', '  ')], teachers, '2026-10-17', 0)).toEqual([])
   })
 
+  it('обычные предметы семестра не считаются, старые записи без вида — долги', () => {
+    const r = debtMeetings([debt('Семестр', 'Шукшин', { kind: 'subject' }), debt('Хвост', 'Шукшин', { kind: 'debt' }), debt('Старый', 'Шукшин')], teachers, '2026-10-17', h(12))
+    expect(r.map((x) => x.debt.subject)).toEqual(['Хвост', 'Старый'])
+  })
+
   it('без расписания — в конце; с расписанием, но без будущих пар — перед ними', () => {
     const r = debtMeetings([debt('A', 'Иванов'), debt('B', 'Герман'), debt('C', 'Шукшин')], teachers, '2026-10-17', h(12))
     expect(r.map((x) => x.debt.subject)).toEqual(['C', 'B', 'A'])

@@ -2,7 +2,7 @@
 // Уведомления от бота: про преподавателей, которым нужно сдать долги.
 // Без сети и без хранилища: серверная функция (supabase/functions/notify) даёт сюда данные и текущее время,
 // а отсюда получает готовые тексты.
-import { debtProgress, debtStatus, type Debt } from './debts'
+import { debtProgress, debtStatus, isDebt, type Debt } from './debts'
 import { addDays, fmtDate, fmtTime, isHidden, type Hidden, type Lesson, weekdayName } from './schedule'
 import { surnameKey } from './insights'
 import { type TeacherCal } from './teachers'
@@ -67,11 +67,11 @@ export interface DebtTeacher {
   debts: Debt[]
 }
 
-/** Незакрытые долги с указанным преподавателем, сгруппированные по человеку */
+/** Незакрытые долги с указанным преподавателем, сгруппированные по человеку. Обычные предметы семестра не считаются. */
 export function debtTeachers(debts: Debt[], teachers: TeacherCal[]): DebtTeacher[] {
   const groups = new Map<string, DebtTeacher>()
   for (const d of debts) {
-    if (debtStatus(d) === 'closed' || !d.teacher?.trim()) continue
+    if (!isDebt(d) || debtStatus(d) === 'closed' || !d.teacher?.trim()) continue
     const cal = teachers.find((t) => teacherMatches(d.teacher!, t))
     const key = cal ? `cal:${cal.id}` : `raw:${norm(d.teacher).trim()}`
     const g = groups.get(key) ?? { label: cal?.name ?? d.teacher.trim(), cal, debts: [] }

@@ -1,5 +1,5 @@
 // Путь: src/data/teachersStore.ts
-// Общий список расписаний преподавателей: им пользуются и «Расписание», и «Долги».
+// Общий список расписаний преподавателей: им пользуются и «Расписание», и «Предметы».
 // Хранится в localStorage; все экраны подписаны и видят изменения сразу.
 import { useSyncExternalStore } from 'react'
 import type { TeacherCal } from '../domain/teachers'

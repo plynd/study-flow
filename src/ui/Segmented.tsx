@@ -16,7 +16,8 @@ export default function Segmented<T extends string>({ value, options, onChange, 
       style={{ '--n': options.length, '--i': i } as CSSProperties}>
       <span className="seg-thumb" aria-hidden="true" />
       {options.map((o) => (
-        <button key={o.value} role="tab" aria-selected={o.value === value}
+        // type="button": внутри формы кнопка без типа отправила бы форму
+        <button key={o.value} type="button" role="tab" aria-selected={o.value === value}
           className={o.value === value ? 'on' : ''} onClick={() => onChange(o.value)}>
           {o.label}
         </button>

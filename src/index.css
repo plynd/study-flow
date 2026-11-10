@@ -227,6 +227,8 @@ button:disabled { opacity: .4; cursor: default; }
 
 /* ——— Сегмент-переключатель ——— */
 .seg { position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr); padding: 3px; border-radius: 99px; background: var(--fill); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .06); }
+/* Переключатель «предмет семестра / долг» в карточке предмета и в форме добавления */
+.kind-pick { padding: .9rem .1rem 0; }
 .seg-thumb {
   position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / var(--n));
   border-radius: 99px; background: var(--glass-hi);

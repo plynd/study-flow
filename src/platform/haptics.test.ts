@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { parseFeedback } from './haptics'
 
 describe('parseFeedback', () => {
-  it('по умолчанию вибрация и звук включены', () => {
-    expect(parseFeedback(null)).toEqual({ haptic: true, sound: true })
-    expect(parseFeedback('мусор')).toEqual({ haptic: true, sound: true })
+  it('по умолчанию вибрация включена', () => {
+    expect(parseFeedback(null)).toEqual({ haptic: true })
+    expect(parseFeedback('мусор')).toEqual({ haptic: true })
   })
-  it('читает выключенные по отдельности', () => {
-    expect(parseFeedback('{"sound":false}')).toEqual({ haptic: true, sound: false })
-    expect(parseFeedback('{"haptic":false,"sound":true}')).toEqual({ haptic: false, sound: true })
+  it('читает выключенную; старое поле sound игнорируется', () => {
+    expect(parseFeedback('{"haptic":false}')).toEqual({ haptic: false })
+    expect(parseFeedback('{"haptic":true,"sound":false}')).toEqual({ haptic: true })
   })
 })

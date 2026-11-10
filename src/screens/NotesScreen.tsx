@@ -33,7 +33,7 @@ export default function NotesScreen({ active = true }: { active?: boolean }) {
     return () => clearInterval(id)
   }, [])
 
-  // долги нужны, чтобы привязать заметку; перечитываем, когда вкладку открыли
+  // предметы нужны, чтобы привязать заметку; перечитываем, когда вкладку открыли
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const debts = useMemo(() => readDebts(), [active, openId])
   const debtName = (id?: string) => debts.find((d) => d.id === id)?.subject
@@ -123,9 +123,9 @@ export default function NotesScreen({ active = true }: { active?: boolean }) {
                 onChange={(e) => patch(open.id, { body: e.target.value })} />
             </div>
 
-            <h3 className="section-title">Долг</h3>
+            <h3 className="section-title">Предмет</h3>
             <div className="group">
-              <select className="input" aria-label="Привязать к долгу" value={open.debtId ?? ''}
+              <select className="input" aria-label="Привязать к предмету" value={open.debtId ?? ''}
                 onChange={(e) => patch(open.id, { debtId: e.target.value || undefined })}>
                 <option value="">Не привязана</option>
                 {debts.map((d) => <option key={d.id} value={d.id}>{d.subject}</option>)}

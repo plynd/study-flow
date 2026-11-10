@@ -6,7 +6,6 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { fmtTime } from '../domain/schedule'
-import { unlockAudio } from '../platform/haptics'
 import Sheet from './Sheet'
 import TimePopover, { POP_H, POP_W } from './TimePopover'
 import Wheel from './Wheel'
@@ -27,7 +26,6 @@ export default function TimeField({ value, onChange, label }: Props) {
   const h = Math.floor(value / 60), m = value % 60
 
   const show = () => {
-    unlockAudio() // звук щелчков разрешён только после касания: это оно
     const r = btn.current?.getBoundingClientRect()
     if (!r || !matchMedia('(hover: hover) and (pointer: fine)').matches) { setOpen({ kind: 'sheet' }); return }
     const vw = innerWidth, vh = innerHeight

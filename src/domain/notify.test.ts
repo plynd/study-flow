@@ -51,6 +51,28 @@ describe('преподаватели по долгам', () => {
   })
 })
 
+describe('предметы семестра в уведомлениях', () => {
+  it('в «долговые» преподаватели попадают только долги', () => {
+    const rud = T('r', 'Рудакова О.Ю.', [])
+    const g = debtTeachers([D('1', 'Рудакова', { kind: 'subject' }), D('2', 'Петров', { kind: 'debt' }), D('3', 'Сидоров')], [rud])
+    expect(g.map((x) => x.label)).toEqual(['Петров', 'Сидоров'])
+  })
+  it('пара преподавателя обычного предмета не помечается как долг', () => {
+    const ctx: DebtCtx = {
+      lessons: [L('own', DAY, 9 * 60)], hidden,
+      teachers: [T('i', 'Иванов И.И.', [L('own', DAY, 9 * 60), L('t2', DAY, 13 * 60)])],
+      debts: [D('1', 'Иванов', { kind: 'subject' })],
+    }
+    const text = dayText(DAY, 'Сегодня', ctx) ?? ''
+    expect(text).not.toContain('🔸')
+    expect(dueWindowReminders(ctx, { date: DAY, min: 12 * 60 + 45 }, 30, new Set())).toEqual([])
+    // а если это долг — помечается и напоминание приходит
+    const asDebt = { ...ctx, debts: [D('1', 'Иванов', { kind: 'debt' })] }
+    expect(dayText(DAY, 'Сегодня', asDebt)).toContain('🔸')
+    expect(dueWindowReminders(asDebt, { date: DAY, min: 12 * 60 + 45 }, 30, new Set())).toHaveLength(1)
+  })
+})
+
 describe('relation', () => {
   const own = [L('a', DAY, 9 * 60), L('b', DAY, 13 * 60)]
   it('до, после, окно, занят, твоя пара', () => {

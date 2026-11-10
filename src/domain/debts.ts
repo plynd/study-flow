@@ -1,5 +1,7 @@
 // Путь: src/domain/debts.ts
-// Модель долгов и расчёт статуса/прогресса. Статус не хранится — он вычисляется из работ.
+// Модель предметов и расчёт статуса/прогресса. Статус не хранится — он вычисляется из работ.
+// Запись исторически называется Debt и лежит под ключом debts-v1: сначала приложение вело только долги.
+// Теперь запись — это предмет, а долг он или обычный предмет семестра, говорит поле kind.
 
 export interface Work {
   id: string
@@ -7,15 +9,26 @@ export interface Work {
   done: boolean // сдана / не сдана, без промежуточных состояний
 }
 
+/** Долг (хвост, который надо закрыть) или обычный предмет этого семестра */
+export type DebtKind = 'debt' | 'subject'
+
 export interface Debt {
   id: string
   subject: string
+  /**
+   * Что это за запись. У записей, созданных до появления поля, его нет: они считаются долгами,
+   * поэтому старые данные (в браузере, в резервной копии, на сервере) читаются без переделки.
+   */
+  kind?: DebtKind
   teacher?: string
   requirements?: string // что нужно сделать, текстом
   notes?: string
   closedManually: boolean // «закрыт без работ»
   works: Work[]
 }
+
+export const kindOf = (d: Pick<Debt, 'kind'>): DebtKind => (d.kind === 'subject' ? 'subject' : 'debt')
+export const isDebt = (d: Pick<Debt, 'kind'>): boolean => kindOf(d) === 'debt'
 
 export type DebtStatus = 'clarify' | 'in_progress' | 'closed'
 
@@ -67,6 +80,40 @@ export function totalProgress(debts: Debt[]): TotalProgress {
     }
   }
   return r
+}
+
+export interface Sections {
+  /** незакрытые долги: показываются первыми и только если есть */
+  debts: Debt[]
+  /** незакрытые предметы семестра */
+  subjects: Debt[]
+  /** всё закрытое, долги и предметы вместе */
+  closed: Debt[]
+}
+
+/** Разделы списка. Внутри раздела сначала то, что в работе, потом то, где работы ещё не заданы; порядок добавления сохраняется. */
+export function sections(all: Debt[]): Sections {
+  const rank = (d: Debt) => (debtStatus(d) === 'in_progress' ? 0 : 1)
+  const open = all.filter((d) => debtStatus(d) !== 'closed').sort((a, b) => rank(a) - rank(b)) // сортировка устойчивая
+  return {
+    debts: open.filter(isDebt),
+    subjects: open.filter((d) => !isDebt(d)),
+    closed: all.filter((d) => debtStatus(d) === 'closed'),
+  }
+}
+
+export interface Overview {
+  debts: TotalProgress
+  subjects: TotalProgress
+  /** о чём главная цифра: о долгах, пока есть незакрытые (или кроме долгов ничего нет), иначе о семестре */
+  focus: 'debts' | 'subjects'
+}
+
+export function overview(all: Debt[]): Overview {
+  const debts = totalProgress(all.filter(isDebt))
+  const subjects = totalProgress(all.filter((d) => !isDebt(d)))
+  const openDebts = debts.debtsTotal - debts.debtsClosed
+  return { debts, subjects, focus: openDebts > 0 || subjects.debtsTotal === 0 ? 'debts' : 'subjects' }
 }
 
 // Названия по умолчанию: «Работа 1…N»

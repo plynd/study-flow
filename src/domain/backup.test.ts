@@ -38,6 +38,13 @@ describe('резервная копия', () => {
     if (!broken.ok) expect(broken.error).toContain('notes-v1')
   })
 
+  it('предметы: старая копия без вида и новая с видом проходят, неизвестный вид — отказ', () => {
+    const file = (debts: unknown[]) => parseBackup(JSON.stringify({ app: 'debts-app', version: 1, data: { 'debts-v1': debts } }))
+    expect(file([debt]).ok).toBe(true) // до появления поля
+    expect(file([{ ...debt, kind: 'debt' }, { ...debt, id: 'b', kind: 'subject' }]).ok).toBe(true)
+    expect(file([{ ...debt, kind: 'другое' }]).ok).toBe(false)
+  })
+
   it('лишние ключи (кэш, чужие) игнорируются', () => {
     const r = parseBackup(JSON.stringify({ app: 'debts-app', version: 1, data: { 'debts-v1': [debt], 'dir-cache-v1': { x: 1 }, evil: 1 } }))
     expect(r.ok && Object.keys(r.backup.data)).toEqual(['debts-v1'])
