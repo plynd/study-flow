@@ -181,7 +181,7 @@ export default function DataScreen({ active }: { active: boolean }) {
           <div className="group">
             <div className="row"><span className="row-title">Копия от {fmt(pending.exportedAt)}</span></div>
             <div className="row"><span className="row-sub">
-              Долгов: {sum.debts} · заметок: {sum.notes} · пар в расписании: {sum.lessons} · преподавателей: {sum.teachers}
+              Предметов: {sum.debts} · заметок: {sum.notes} · пар в расписании: {sum.lessons} · преподавателей: {sum.teachers}
             </span></div>
             <button className="row danger" onClick={() => { if (!applyBackup(pending)) setMsg({ text: 'Не удалось записать данные.', error: true }) }}>
               <span className="row-title strong">Заменить текущие данные</span>

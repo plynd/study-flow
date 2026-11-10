@@ -1,7 +1,7 @@
 // Путь: src/domain/insights.ts
 // Сводки по расписанию для боковой панели: ближайшая пара, загрузка недели, где застать преподавателей для долгов.
 // Только очные пары: дистант в «день студента» и подбор не входит (как везде).
-import { debtStatus, type Debt } from './debts'
+import { debtStatus, isDebt, type Debt } from './debts'
 import type { Lesson } from './schedule'
 
 const inPerson = (ls: Lesson[]) => ls.filter((l) => !l.remote)
@@ -81,6 +81,7 @@ export interface DebtMeeting {
 
 /**
  * Для каждого незакрытого долга с указанным преподавателем: когда и где его ближайшая очная пара.
+ * Обычные предметы семестра сюда не входят: их преподавателя и так видно на своих парах.
  * Преподаватель из долга сопоставляется с загруженным расписанием по фамилии.
  * Сначала те, до кого ближе по времени; без расписания — в конце.
  */
@@ -89,7 +90,7 @@ export function debtMeetings(
 ): DebtMeeting[] {
   const out: DebtMeeting[] = []
   for (const debt of debts) {
-    if (debtStatus(debt) === 'closed' || !debt.teacher?.trim()) continue
+    if (!isDebt(debt) || debtStatus(debt) === 'closed' || !debt.teacher?.trim()) continue
     const key = surnameKey(debt.teacher)
     const cal = key ? teachers.find((t) => surnameKey(t.name) === key) : undefined
     out.push({ debt, hasCalendar: !!cal, next: cal ? nextLesson(cal.lessons, date, min) : null })

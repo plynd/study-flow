@@ -10,7 +10,7 @@ import './index.css'
 
 type Tab = 'debts' | 'schedule' | 'notes' | 'data'
 const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
-  { id: 'debts', label: 'Долги', icon: <IconDebts /> },
+  { id: 'debts', label: 'Предметы', icon: <IconDebts /> },
   { id: 'schedule', label: 'Расписание', icon: <IconCalendar /> },
   { id: 'notes', label: 'Заметки', icon: <IconNotes /> },
   { id: 'data', label: 'Настройки', icon: <IconSettings /> },
@@ -37,7 +37,7 @@ export default function App() {
       <div hidden={tab !== 'notes'} className="screen"><NotesScreen active={tab === 'notes'} /></div>
       <div hidden={tab !== 'data'} className="screen"><DataScreen active={tab === 'data'} /></div>
       <nav className="tabbar" aria-label="Разделы">
-        <span className="side-brand">Долги и расписание</span>
+        <span className="side-brand">Учёба</span>
         {/* «бегунок» переезжает к выбранной вкладке, как в переключателе расписания */}
         <div className="tabs" style={{ '--n': TABS.length, '--i': Math.max(0, TABS.findIndex((t) => t.id === tab)) } as CSSProperties}>
           <span className="tab-thumb" aria-hidden="true" />

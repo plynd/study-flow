@@ -6,7 +6,7 @@ export interface Note {
   title: string
   body: string
   pinned: boolean
-  /** к какому долгу относится (необязательно) */
+  /** к какому предмету относится (необязательно); поле названо debtId исторически */
   debtId?: string
   /** когда меняли в последний раз (мс) */
   updatedAt: number

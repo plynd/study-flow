@@ -3,6 +3,7 @@
 // Только показывает: вся арифметика — в domain/insights.ts.
 import { readDebts } from '../data/readDebts'
 import { useMemo } from 'react'
+import { debtStatus, isDebt } from '../domain/debts'
 import { debtMeetings, fmtDuration, nextLesson, weekLoad } from '../domain/insights'
 import { building, fmtDate, fmtTime, weekdayName, type Lesson } from '../domain/schedule'
 import type { TeacherCal } from '../domain/teachers'
@@ -31,6 +32,8 @@ export default function ScheduleAside({ visible, teachers, active, selected, wee
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const debts = useMemo(() => readDebts(), [active, now])
   const meetings = debtMeetings(debts, teachers, today, minNow)
+  // Карточка «Сдать долги» нужна, только пока есть незакрытые долги: у кого их нет, тому она ни к чему
+  const hasOpenDebts = debts.some((x) => isDebt(x) && debtStatus(x) !== 'closed')
   const load = weekLoad(visible, weekDays)
   const maxMin = Math.max(1, ...load.map((x) => x.minutes))
   const weekMin = load.reduce((s, x) => s + x.minutes, 0)
@@ -55,7 +58,7 @@ export default function ScheduleAside({ visible, teachers, active, selected, wee
         )}
       </section>
 
-      {(
+      {hasOpenDebts && (
         <section className="side-card">
           <h3 className="side-title">Сдать долги</h3>
           {meetings.length === 0 && (

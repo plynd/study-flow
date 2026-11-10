@@ -1,4 +1,6 @@
 // src/domain/debts.ts
+var kindOf = (d) => d.kind === "subject" ? "subject" : "debt";
+var isDebt = (d) => kindOf(d) === "debt";
 function debtStatus(debt) {
   if (debt.closedManually) return "closed";
   if (debt.works.length === 0) return "clarify";
@@ -80,7 +82,7 @@ function teacherMatches(debtTeacher, cal) {
 function debtTeachers(debts, teachers) {
   const groups = /* @__PURE__ */ new Map();
   for (const d of debts) {
-    if (debtStatus(d) === "closed" || !d.teacher?.trim()) continue;
+    if (!isDebt(d) || debtStatus(d) === "closed" || !d.teacher?.trim()) continue;
     const cal = teachers.find((t) => teacherMatches(d.teacher, t));
     const key = cal ? `cal:${cal.id}` : `raw:${norm(d.teacher).trim()}`;
     const g = groups.get(key) ?? { label: cal?.name ?? d.teacher.trim(), cal, debts: [] };
@@ -132,8 +134,9 @@ function dayText(date, label, ctx) {
     for (const l of inPerson(g.cal, date)) {
       const rel = relation(l, own);
       if (rel === "\u044D\u0442\u043E \u0438 \u0442\u0432\u043E\u044F \u043F\u0430\u0440\u0430") continue;
+      if (rel.startsWith("\u0432 \u044D\u0442\u043E \u0432\u0440\u0435\u043C\u044F \u0443 \u0442\u0435\u0431\u044F")) continue;
       debtLessons++;
-      items.push({ start: l.start, text: `\u{1F538} ${span(l)} \xB7 ${g.label}${place(l) ? ` \xB7 ${place(l)}` : ""}
+      items.push({ start: l.start, text: `\u{1F538} ${span(l)} \xB7 ${g.label.replace(/\s*\(.*$/, "")}${place(l) ? ` \xB7 ${place(l)}` : ""}
       \u0434\u043E\u043B\u0433: ${g.debts.map(debtText).join("; ")}
       ${rel}` });
     }

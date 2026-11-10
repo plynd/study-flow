@@ -27,7 +27,9 @@ const isStr = (v: unknown) => typeof v === 'string'
 const arrOf = (v: unknown, ok: (x: unknown) => boolean) => Array.isArray(v) && v.every(ok)
 
 const CHECKS: Record<BackupKey, (v: unknown) => boolean> = {
+  // kind появился позже: в старых копиях его нет (это долги), в новых — 'debt' или 'subject'
   'debts-v1': (v) => arrOf(v, (d) => isObj(d) && isStr(d.id) && isStr(d.subject) && typeof d.closedManually === 'boolean'
+    && (d.kind === undefined || d.kind === 'debt' || d.kind === 'subject')
     && arrOf(d.works, (w) => isObj(w) && isStr(w.id) && isStr(w.title) && typeof w.done === 'boolean')),
   'notes-v1': (v) => arrOf(v, (n) => isObj(n) && isStr(n.id) && isStr(n.title) && isStr(n.body)
     && typeof n.pinned === 'boolean' && typeof n.updatedAt === 'number'),
